@@ -28,8 +28,8 @@ export default function UserTask() {
       <div className="flex flex-col">
         <div className="flex flex-col gap-y-7 w-full">
           <ul className="flex w-full font-bold text-lg text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full">
-            <li className="w-1/3">Name</li>
-            <li className="w-1/3">Email</li>
+            <li className="w-1/3">Ttile</li>
+            <li className="w-1/3">Description</li>
             <li className="w-1/3">Status</li>
           </ul>
           <div className="flex flex-col gap-y-3 text-sm">

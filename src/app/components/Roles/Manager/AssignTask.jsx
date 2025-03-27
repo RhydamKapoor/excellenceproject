@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CreateTask() {
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const { register, handleSubmit, watch, reset } = useForm();
+  const { register, handleSubmit, watch, reset, setValue } = useForm();
 
   useEffect(() => {
     fetchUsers();
@@ -27,7 +28,6 @@ export default function CreateTask() {
     try {
       const { data } = await axios.get("/api/manager/get-tasks");
       setTasks(data);
-      console.log(data);
       
     } catch (error) {
       toast.error(error.response?.data?.error || "Failed to fetch tasks");
@@ -75,32 +75,35 @@ export default function CreateTask() {
             <div className="relative flex flex-col w-full">
               <textarea
                 id="description"
-                className="border w-full px-5 py-2.5 rounded-lg peer text-[var(--withdarkinnertext)]"
+                className="border w-full px-5 py-2.5 rounded-lg peer text-[var(--withdarkinnertext)] resize-none"
                 {...register("description")}
                 spellCheck="false"
+                rows={5}
                 required
               />
               <label
                 htmlFor="description"
-                className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-11 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--background)] px-1 transition-all duration-200 ${
-                  watch("description") && `-translate-x-2 scale-90 -translate-y-11`
+                className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-20.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--background)] px-1 transition-all duration-200 ${
+                  watch("description") && `-translate-x-2 scale-90 -translate-y-20.5`
                 }`}
               >
                 Description
               </label>
             </div>
-            <select
-              className="border rounded-full py-3 px-3 w-full mb-2 outline-none"
-              {...register("userId")} // ✅ Corrected key to "userId"
-              required
-            >
-              <option value="">Select User</option>
-              {users?.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName} ({user.email})
-                </option>
-              ))}
-            </select>
+            <Select onValueChange={(value) => setValue("userId", value)} defaultValue="">
+              <SelectTrigger className="w-full rounded-full py-6 px-4 text-[var(--withdarkinnertext)]">
+                <SelectValue placeholder="Select an employee"/>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {users?.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <button
               type="submit"
               className="px-3 py-1 bg-[var(--dark-btn)] text-white rounded-full w-1/2 cursor-pointer"

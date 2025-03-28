@@ -26,6 +26,8 @@ model Task {
   userId      String? // Assigned user ID
   managerId   String? // Assigned by manager ID
   status      String @default("Pending") // Task status
+  reportMessage String?
+  feedBack String?
 }
 
 enum Role {

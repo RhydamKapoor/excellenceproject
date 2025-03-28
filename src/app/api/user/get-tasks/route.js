@@ -19,6 +19,7 @@ export async function GET(req) {
         title: true,
         description: true,
         status: true,
+        feedBack: true
       },
     });
     return NextResponse.json(tasks,{message: `Fetched Successfully`}, { status: 200 });

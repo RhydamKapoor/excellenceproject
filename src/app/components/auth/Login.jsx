@@ -48,7 +48,7 @@ export default function Login() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-y-7 w-3/5 items-center"
+      className="flex flex-col gap-y-7 md:w-3/5 w-3/4 max-[500px]:w-full px-5 lg:px-0 items-center"
     >
       <div className="flex flex-col gap-y-2 w-full text-[var(--withdarktext)]">
         {/* Email */}

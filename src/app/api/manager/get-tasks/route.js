@@ -5,6 +5,8 @@ import { prisma } from "@/utils/db";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    console.log(session);
+    
     if (!session || session.user.role !== "MANAGER") {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }

@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReportedTask from "./ReportedTask";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function CreateTask() {
   const [users, setUsers] = useState([]);
@@ -16,6 +17,22 @@ export default function CreateTask() {
     fetchUsers();
     fetchTasks();
   }, []);
+
+  const changeStatus = async(id, status) => {
+    const toastId = toast.loading(`Updating Status...`);
+    try {
+      const res = await axios.post("/api/manager/change-status", {  id, status });
+      if (res.status === 200) {
+        toast.success("Status updated successfully", { id: toastId });
+        fetchTasks();
+      } else {
+        toast.error("Something went wrong!", { id: toastId });
+      }
+    } catch (error) {
+       console.log(error);
+        toast.error(error.response.data.message, { id: toastId });
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -59,7 +76,7 @@ export default function CreateTask() {
 
         {!checkTask ? 
          <>
-          <div className="flex flex-col gap-y-10 w-1/4 h-full justify-center">
+          <div className="flex flex-col gap-y-10 w-1/2 h-full justify-center">
             <div className="flex justify-center">
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">
                 Assign Tasks
@@ -101,7 +118,7 @@ export default function CreateTask() {
                 </label>
               </div>
               <Select onValueChange={(value) => setValue("userId", value)} defaultValue="">
-                <SelectTrigger className="w-full rounded-full py-6 px-4 text-[var(--withdarkinnertext)]">
+                <SelectTrigger className="w-full rounded-full py-6 px-4 text-md text-[var(--withdarkinnertext)]">
                   <SelectValue placeholder="Select an employee"/>
                 </SelectTrigger>
                 <SelectContent>
@@ -114,51 +131,117 @@ export default function CreateTask() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <button
-                type="submit"
-                className="px-3 py-1 bg-[var(--dark-btn)] text-white rounded-full w-1/2 cursor-pointer"
-              >
-                Create Task
-              </button>
-            </form>
-          </div>
-
-          <div className="flex flex-col gap-y-10 w-3/4 h-full overflow-scroll">
-            <div className="flex justify-center">
-              <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-                Assigned Tasks
-              </h2>
-            </div>
-
-            <div className="flex flex-col gap-y-7 w-full px-5 overflow-hidden cursor-default">
-              <ul className="flex w-full font-bold text-md text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full *:px-1">
-                <li className="w-1/5">Title</li>
-                <li className="w-1/5">Description</li>
-                <li className="w-1/5">Assigned To</li>
-                <li className="w-1/5">Status</li>
-                <li className="w-1/5">Report</li>
-              </ul>
-              <div className="flex flex-col gap-y-3 text-sm overflow-y-auto">
-                {tasks.length > 0 ? tasks.map((task) => (
-                  <ul
-                    className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full *:px-1"
-                    key={task.id}
-                  >
-                    <li className="w-1/5 capitalize">{task.title}</li>
-                    <li className="w-1/5">{task.description}</li>
-                    <li className="w-1/5 capitalize">
-                      {task.assignedTo.firstName} {task.assignedTo.lastName}
-                    </li>
-                    <li className={`w-1/5 ${task.status === 'Completed' ? `text-green-600` : `text-yellow-600`}`}>{task.status}</li>
-                    {task.reportMessage && <li className={`w-1/5 cursor-pointer underline text-yellow-600`}><span onClick={() => setCheckTask(task)}>Reported</span></li>}
-                    {!task.reportMessage && <li className={`w-1/5`}>--</li>}
-                  </ul>
-                )) : 
-                  <div className="flex justify-center text-slate-500">
-                    No tasks assigned!
-                  </div>}
+              <div className="flex w-full justify-center gap-x-5">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      className="px-3 py-1 bg-white text-[var(--dark-btn)] border border-current rounded-full w-1/3 cursor-pointer"
+                    >
+                      Show assigned task
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-3/4 gap-y-7">
+                    <DialogHeader className={`items-center`}>
+                      <DialogTitle className={`text-[var(--specialtext)]`}>Assigned Tasks</DialogTitle>
+                      <DialogDescription>
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-y-7 w-full px-5 overflow-hidden cursor-default">
+                      <ul className="flex w-full font-bold text-md text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full *:px-1">
+                        <li className="w-1/5">Title</li>
+                        <li className="w-1/5">Description</li>
+                        <li className="w-1/5">Assigned To</li>
+                        <li className="w-1/5">Status</li>
+                        <li className="w-1/5">Report</li>
+                      </ul>
+                      <div className="flex flex-col gap-y-3 text-sm overflow-y-auto">
+                        {tasks.length > 0 ? tasks.map((task) => (
+                          <ul
+                            className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full *:px-1"
+                            key={task.id}
+                          >
+                            <li className="w-1/5 capitalize">{task.title}</li>
+                            <li className="w-1/5">{task.description}</li>
+                            <li className="w-1/5 capitalize">
+                              {task.assignedTo.firstName} {task.assignedTo.lastName}
+                            </li>
+                            <li className={`w-1/5 ${task.status === 'Completed' ? `text-green-600` : task.status === 'Pending' ? `text-yellow-600` : task.status === 'Delayed' ? `text-orange-600` : `text-red-600`}`}>{task.status}</li>
+                            {task.reportMessage && <li className={`w-1/5 cursor-pointer underline text-yellow-600`}><span onClick={() => setCheckTask(task)}>Reported</span></li>}
+                            {/* {
+                              (!task.reportMessage && (task.status === 'Delayed' || task.status === 'Closed')) ? 
+                              <li className={`${task.status === 'Delayed' ? `text-orange-600` : `text-red-600`} w-1/5 flex justify-center`}>{task.status}</li>
+                              :
+                              <li className={`w-1/5 flex justify-center`}>
+                                <Select
+                                  defaultValue="--"
+                                  onValueChange={(value) => {
+                                  if (value !== "--") {
+                                    changeStatus(task.id, value);
+                                  }
+                                }}
+                                >
+                                  <SelectTrigger className={`text-md capitalize border-none text-center justify-center w-1/2 ${watch('status') === 'Closed' ? ` text-red-600` : `text-orange-600`}`}>
+                                    <SelectValue placeholder="--" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectGroup className="capitalize *:cursor-pointer">
+                                      <SelectItem value="--">
+                                        --
+                                      </SelectItem>
+                                      <SelectItem value="Delayed">
+                                        delayed
+                                      </SelectItem>
+                                      <SelectItem value="Closed">Closed</SelectItem>
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
+                              </li>
+                            } */}
+                            {
+                              !task.reportMessage &&
+                              <li className={`w-1/5 flex justify-center`}>
+                                <Select
+                                defaultValue={task.status === 'Delayed' ? 'Delayed' : task.status === 'Closed' ? 'Closed' : '--'}
+                                  onValueChange={(value) => {
+                                  if (value !== "--") {
+                                    changeStatus(task.id, value);
+                                  }
+                                }}
+                                >
+                                  <SelectTrigger className={`text-md capitalize border-none text-center justify-center w-1/2 ${watch('status') === 'Closed' ? ` text-red-600` : `text-orange-600`}`}>
+                                    <SelectValue placeholder="--" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectGroup className="capitalize *:cursor-pointer">
+                                      {/* <SelectItem value={task.status === 'Delayed' ? 'Delayed' : 'Closed'}>
+                                        {task.status === 'Delayed' ? 'Delayed' : 'Closed'}
+                                      </SelectItem> */}
+                                      <SelectItem value="Delayed">
+                                        delayed
+                                      </SelectItem>
+                                      <SelectItem value="Closed">Closed</SelectItem>
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
+                              </li>
+                            }
+                          </ul>
+                        )) : 
+                          <div className="flex justify-center text-slate-500">
+                            No tasks assigned!
+                          </div>}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <button
+                  type="submit"
+                  className="px-3 py-1 bg-[var(--dark-btn)] text-white rounded-full w-1/3 cursor-pointer"
+                >
+                  Create Task
+                </button>
               </div>
-            </div>
+            </form>
           </div>
          </>
          :

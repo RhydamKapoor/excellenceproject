@@ -134,6 +134,10 @@ body {
   }
 }
 
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button{
+  appearance: none;
+}
 ::-webkit-scrollbar{
   width: 8px;
   height: 8px;

@@ -13,8 +13,11 @@ export async function POST(req) {
     const user = await prisma.user.update({
         where: { id: userId },
         data: { role: newRole },
-      });
+    });
 
+    await prisma.task.deleteMany({
+      where: { userId },
+    });
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }

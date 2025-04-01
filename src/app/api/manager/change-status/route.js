@@ -9,11 +9,11 @@ export async function POST(req) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { id, status } = await req.json();
+    const { id, status, feedBack } = await req.json();
 
     const task = await prisma.task.update({
         where: {id},
-        data: { status },
+        data: { status, feedBack },
     });
 
     return Response.json({ message: "Status updated successfully", task }, { status: 200 });

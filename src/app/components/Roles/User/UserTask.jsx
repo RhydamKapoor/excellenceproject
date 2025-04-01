@@ -3,7 +3,6 @@ import axios from "axios";
 import { CircleArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Input, Textarea } from "../../Input";
 import toast from "react-hot-toast";
 
 export default function UserTask() {
@@ -11,21 +10,20 @@ export default function UserTask() {
   const [taskDetail, setTaskDetail] = useState(null);
   const { register, handleSubmit, watch } = useForm();
 
-  console.log(taskDetail);
   
   const fetchUserTasks = async () => {
     try {
       const { data } = await axios.get("/api/user/get-tasks");
-      console.log(data.length === 0);
 
       setTasks(data);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      // console.error("Error fetching tasks:", error);
     }
   };
+
   const SubmitTask = async (data) => {
     const toastId = toast.loading("Processing...");
-    if(taskDetail.status === 'Pending'){
+    if(taskDetail.status === 'Pending' || taskDetail.status === 'Delayed'){
       try {
         const res = await axios.post("/api/user/submit-task", {
           ...data,
@@ -41,12 +39,24 @@ export default function UserTask() {
         console.log(error);
         toast.error(error.response.data.message, { id: toastId });
       }
-    }else{
+    }
+    else if(taskDetail.status === 'Completed'){
       toast.success(`The task already completed!`, {id: toastId})
     }
+    else if(taskDetail.status === 'Closed'){
+      toast.error(`The task has been closed!`, {id: toastId})
+    }
   };
+
   useEffect(() => {
     fetchUserTasks();
+  
+    const interval = setInterval(() => {
+      
+      fetchUserTasks();
+    }, 10000);
+  
+    return () => clearInterval(interval);
   }, []);
   return (
     <div className="flex flex-col p-5 gap-y-10">
@@ -54,8 +64,6 @@ export default function UserTask() {
         <>
           <div className="flex justify-center relative">
             <div className="relative flex items-center">
-              {/* {taskDetail.id && (
-              )} */}
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">
                 Your Tasks
               </h2>
@@ -79,10 +87,10 @@ export default function UserTask() {
                       <li className="w-1/3">{task.description}</li>
                       <li className="w-1/3">
                         <span
-                          className={`cursor-pointer underline ${
+                          className={`underline cursor-pointer ${
                             task.status === "Pending"
                               ? " text-yellow-700"
-                              : "text-green-800"
+                              : task.status === "Completed" ? `text-green-600` : task.status === "Delayed" ? `text-orange-600` : `text-red-600`
                           }`}
                           onClick={() =>
                             setTaskDetail(task)
@@ -111,6 +119,7 @@ export default function UserTask() {
             <CircleArrowLeft color="#92613a" strokeWidth={1.5} size={28} />
           </span>
 
+          {/* Submit Report Form */}
           <div className="flex flex-col items-center gap-y-8 w-1/2">
             <div className="flex">
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">
@@ -165,13 +174,15 @@ export default function UserTask() {
                   <button
                     className={`bg-[var(--dark-btn)] w-1/2 py-1 rounded-full cursor-pointer`}
                   >
-                    {taskDetail.status === "Completed" ? `You have completed the task` : `Submit`}
+                    {taskDetail.status === "Completed" ? `You have completed the task` : taskDetail.status === "Closed" ? `Task is closed` : `Submit`}
                   </button>
                 </div>
               </form>
             </div>
           </div>
 
+
+          {/* Feedback */}
           <div className="flex flex-col items-center gap-y-8 w-1/2">
             <div className="flex">
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">

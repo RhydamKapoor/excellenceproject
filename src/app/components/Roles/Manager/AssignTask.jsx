@@ -5,34 +5,24 @@ import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReportedTask from "./ReportedTask";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import StatusMessage from "./StatusMessage";
 
 export default function CreateTask() {
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [checkTask, setCheckTask] = useState(null);
-  const { register, handleSubmit, watch, reset, setValue } = useForm();
+  const { register, handleSubmit, watch, reset, setValue } = useForm({
+    defaultValues: {
+      feedBack: "",
+  }});
 
   useEffect(() => {
     fetchUsers();
     fetchTasks();
   }, []);
 
-  const changeStatus = async(id, status) => {
-    const toastId = toast.loading(`Updating Status...`);
-    try {
-      const res = await axios.post("/api/manager/change-status", {  id, status });
-      if (res.status === 200) {
-        toast.success("Status updated successfully", { id: toastId });
-        fetchTasks();
-      } else {
-        toast.error("Something went wrong!", { id: toastId });
-      }
-    } catch (error) {
-       console.log(error);
-        toast.error(error.response.data.message, { id: toastId });
-    }
-  }
+  
 
   const fetchUsers = async () => {
     try {
@@ -199,30 +189,8 @@ export default function CreateTask() {
                             } */}
                             {
                               !task.reportMessage &&
-                              <li className={`w-1/5 flex justify-center`}>
-                                <Select
-                                defaultValue={task.status === 'Delayed' ? 'Delayed' : task.status === 'Closed' ? 'Closed' : '--'}
-                                  onValueChange={(value) => {
-                                  if (value !== "--") {
-                                    changeStatus(task.id, value);
-                                  }
-                                }}
-                                >
-                                  <SelectTrigger className={`text-md capitalize border-none text-center justify-center w-1/2 ${watch('status') === 'Closed' ? ` text-red-600` : `text-orange-600`}`}>
-                                    <SelectValue placeholder="--" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectGroup className="capitalize *:cursor-pointer">
-                                      {/* <SelectItem value={task.status === 'Delayed' ? 'Delayed' : 'Closed'}>
-                                        {task.status === 'Delayed' ? 'Delayed' : 'Closed'}
-                                      </SelectItem> */}
-                                      <SelectItem value="Delayed">
-                                        delayed
-                                      </SelectItem>
-                                      <SelectItem value="Closed">Closed</SelectItem>
-                                    </SelectGroup>
-                                  </SelectContent>
-                                </Select>
+                              <li className={`w-1/5 flex justify-center inert`}>
+                                <StatusMessage task={task} fetchTasks={fetchTasks}/>
                               </li>
                             }
                           </ul>

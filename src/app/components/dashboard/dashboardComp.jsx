@@ -17,7 +17,6 @@ export default function DashboardComp() {
     const toastId = toast.loading(`Fetching tasks...`)
     try {
       const { data } = await axios.get("/api/user/get-tasks");
-      console.log(data);
       
       toast.success(`Have a great day!`, {id: toastId})
       setTasks(data);
@@ -32,6 +31,8 @@ export default function DashboardComp() {
     try {
       const { data } = await axios.get("/api/manager/get-tasks");
       if(data){
+        console.log(data);
+        
         setTasks(data);
         toast.success(`Have a great day!`, {id: toastId})
       }else{
@@ -65,7 +66,7 @@ export default function DashboardComp() {
         
     }else if(session?.user?.role === 'MANAGER'){
         assignedTaskFetch();
-    }else{
+    }else if(session?.user?.role === 'ADMIN'){
       totalUsers();
     }
   }, [session]);
@@ -89,9 +90,12 @@ export default function DashboardComp() {
             </div>
 
             <div className="flex flex-col w-1/2 items-center">
-                <h1 className="text-lg text-slate-800 font-bold">{session?.user?.role === 'USER' ? `Your Tasks` : session?.user?.role === 'MANAGER' ? `Total Assigned Task` : `Your Users`}</h1>
+                <h1 className="text-lg text-slate-800 font-bold">{session?.user?.role === 'USER' ? `Your Tasks` : session?.user?.role === 'MANAGER' ? `Total Assigned Task` : `Your employees`}</h1>
                 <div className="flex flex-col items-center">
-                    <h3><NumberTicker value={tasks.length || adminDetail.length - 1}  className="text-5xl py-3 text-[var(--specialtext)]"/></h3>
+                    {session?.user?.role === "ADMIN" ? 
+                      <h3><NumberTicker value={adminDetail.length - 1}  className="text-5xl py-3 text-[var(--specialtext)]"/></h3>
+                      : <h3><NumberTicker value={tasks.length}  className="text-5xl py-3 text-[var(--specialtext)]"/></h3>
+                    }
                 </div>
                 <div className={`flex flex-col gap-y-3 uppercase w-3/4 font-[family-name:var(--font-roboto)] font-semibold border rounded-xl shadow-xl p-8`}>
                 {
@@ -100,7 +104,7 @@ export default function DashboardComp() {
                       <div className="flex w-full *:w-1/2 capitalize">
                         <div className="flex flex-col items-center">
                           <label className="text-sm text-slate-800">Total Users</label>
-                          <h3><NumberTicker value={countUsers}  className="text-3xl py-3 text-[var(--specialtext)]"/></h3>
+                          <h3><NumberTicker value={countUsers || 0}  className="text-3xl py-3 text-[var(--specialtext)]"/></h3>
                         </div>
                         <div className="flex flex-col items-center">
                           <label className="text-sm text-slate-800">Total Managers</label>

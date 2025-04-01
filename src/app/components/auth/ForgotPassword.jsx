@@ -42,7 +42,7 @@ export default function ForgotPassword({ setForgotPassword }) {
   
   const sendOtp = async (e) => {
     e.preventDefault(); 
-    const email = watch('email');
+    const email = watch('email')?.toLowerCase();
 
     if (!isValidEmail(email)) {
         toast.error("Invalid email address");
@@ -67,7 +67,7 @@ export default function ForgotPassword({ setForgotPassword }) {
 
   const verifyOtpHandler = async (e) => {
     e.preventDefault();
-    const email = watch('email');
+    const email = watch('email')?.toLowerCase();
     const otp = watch('otp');
 
     const toastId = toast.loading(`Verifying OTP...`);
@@ -87,7 +87,7 @@ export default function ForgotPassword({ setForgotPassword }) {
 
   const createNewPassword = async (e) => {
     e.preventDefault();
-    const email = watch('email');
+    const email = watch('email')?.toLowerCase();
     const password = watch('password');
     const errors = validatePassword(password);
     

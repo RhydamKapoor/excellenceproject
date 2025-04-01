@@ -26,7 +26,7 @@ export default function EditProfile() {
                 </div>
                 <div className="flex items-center gap-x-5 w-full *:w-1/2 ">
                     <label className="text-[var(--specialtext)] font-semibold">Role:</label>
-                    <h1 className="capitalize text-slate-800 text-base flex gap-x-2">{session?.user?.role === "ADMIN" ? `Manage the roles of the employees` : session?.user?.role === "MANAGER" ? `Assign tasks to your employees` : `View your tasks`} ({(session?.user?.role).toLowerCase()})</h1>
+                    <h1 className="capitalize text-slate-800 text-base flex gap-x-2">{session?.user?.role === "ADMIN" ? `Manage the roles of the employees` : session?.user?.role === "MANAGER" ? `Assign tasks to your employees` : `View your tasks`} ({(session?.user?.role)?.toLowerCase()})</h1>
                 </div>
             </div>
         </div>

@@ -14,13 +14,21 @@ export async function POST(req) {
         where: { id: userId },
         data: { role: newRole },
     });
-
-    await prisma.task.deleteMany({
-      where: { userId },
-    });
+    
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
+
+    if(user.role === "USER"){
+      await prisma.task.deleteMany({
+        where: { userId },
+      });
+    }else{
+      await prisma.task.updateMany({
+        where: { managerId: userId },
+      });
+    }
+    
 
     return Response.json({ message: "Role updated successfully" }, { status: 200 });
   } catch (error) {

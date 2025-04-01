@@ -24,8 +24,8 @@ export default function Contents() {
         {
           role: "ADMIN",
           links: [
-            { label: "Manage roles", href: "/dashboard/admin/workers" },
-            // { label: "Settings", href: "/dashboard/admin/settings" }
+            // { label: "Assign users", href: "/dashboard/admin/assignusers" },
+            { label: "Manage roles", href: "/dashboard/admin/manageroles" },
           ],
         },
         {

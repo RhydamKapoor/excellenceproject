@@ -12,7 +12,7 @@ export const authOptions = {
       async authorize(credentials) {
         try {
         //   await connectDB();
-
+          
           const user = await prisma.user.findUnique({where: { email: credentials.email }});
 
           if (!user) {
@@ -33,6 +33,7 @@ export const authOptions = {
             lastName: user.lastName,
             email: user.email,
             role: user.role,
+            createdAt: user.createdAt, 
             allowedRoutes: user.role === "ADMIN" ? ["/", "/dashboard/admin/*", "/dashboard"] : user.role === "USER" ? ["/", "/dashboard", "/dashboard/user/*"] : ['/', '/dashboard', '/dashboard/manager/*'],
           };
         } catch (error) {
@@ -49,6 +50,7 @@ export const authOptions = {
         token.firstName = user.firstName;
         token.lastName = user.lastName;
         token.role = user.role;
+        token.createdAt = user.createdAt;
         token.allowedRoutes = user.allowedRoutes;
       }
       return token;
@@ -59,6 +61,7 @@ export const authOptions = {
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
         session.user.role = token.role;
+        session.user.createdAt = token.createdAt;
         session.user.allowedRoutes = token.allowedRoutes;
       }
       return session;

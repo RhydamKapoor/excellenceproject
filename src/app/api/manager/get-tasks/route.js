@@ -22,7 +22,8 @@ export async function GET() {
     }
 
     // Fetch user details for assigned tasks
-    const userIds = tasks.map((task) => task.userId); // Get all assigned user IDs
+    const userIds = tasks.map((task) => task.userId)
+    .filter((id) => id && id.trim() !== ""); // Get all assigned user IDs
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, firstName: true, lastName: true, email: true },
@@ -31,11 +32,11 @@ export async function GET() {
     // Map user details to tasks
     const tasksWithUsers = tasks.map((task) => ({
       ...task,
-      assignedTo: users.find((user) => user.id === task.userId) || null,
+      assignedUsers: users.find((user) => user.id === task.userId) || null,
     }));
 
-    return NextResponse.json(tasksWithUsers, { status: 200 });
+    return NextResponse.json(tasksWithUsers, {message: `Tasks fetched successfully!`}, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }

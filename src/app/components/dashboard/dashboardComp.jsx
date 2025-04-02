@@ -40,7 +40,9 @@ export default function DashboardComp() {
       }
       
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to fetch tasks", {id: toastId});
+      toast.error(error.response?.data?.message || "Failed to fetch tasks", {id: toastId});
+      console.log(error);
+      
     }
   };
 

@@ -8,26 +8,46 @@ export async function POST(req) {
     if (!session || session.user.role !== "ADMIN") {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
+    const { userId,newRole, employeeId } = await req.json();
 
-    const { userId, newRole } = await req.json();
-    const user = await prisma.user.update({
-        where: { id: userId },
-        data: { role: newRole },
-    });
-    
-    if (!user) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if(user.role === "USER"){
-      await prisma.task.deleteMany({
+    if(newRole === "MANAGER"){
+      const user = await prisma.user.update({
+          where: { id: userId },
+          data: { role: newRole },
+      });
+      
+      if (!user) {
+        return Response.json({ error: "User not found" }, { status: 404 });
+      }
+  
+      await prisma.task.updateMany({
         where: { userId },
+        data: {userId: ''}
       });
     }else{
-      await prisma.task.updateMany({
-        where: { managerId: userId },
+      
+      const user = await prisma.user.update({
+          where: { id: userId },
+          data: { role: newRole },
       });
+
+      if (!user) {
+        return Response.json({ error: "User not found" }, { status: 404 });
+      }
+      const employee = await prisma.user.update({
+          where: { id: employeeId },
+          data: { role: "MANAGER" },
+      });
+
+      if (!employee) {
+        return Response.json({ error: "Employee not found" }, { status: 404 });
+      }
+      await prisma.task.updateMany({
+        where: { managerId: userId},
+        data : {managerId: employeeId}
+      })
     }
+    
     
 
     return Response.json({ message: "Role updated successfully" }, { status: 200 });

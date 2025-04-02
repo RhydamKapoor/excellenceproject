@@ -47,10 +47,14 @@ export default function ChangeRoles() {
   };
 
   const updateRole = async (userId, newRole) => {
-    setLoading(true);
+    console.log(userId, newRole, watch("employeeId"))
     const toastId = toast.loading(`Changing role...`);
     try {
-      await axios.post("/api/admin/update-role", { userId, newRole });
+      if(newRole === "MANAGER"){
+        await axios.post("/api/admin/update-role", { userId, newRole });
+      }else{
+        await axios.post("/api/admin/update-role", { userId, newRole, employeeId: watch("employeeId") });
+      }
 
       toast.success("Role updated successfully", { id: toastId });
       setRoleUpdated(!roleUpdated);
@@ -64,27 +68,6 @@ export default function ChangeRoles() {
     }
   };
   
-  const swapRole = async(currentRole, currentUser, selectedEmployee) => {
-    const toastId = toast.loading(`Swapping roles...`);
-    const changedRole = currentRole === "USER" ? "MANAGER" : "USER";
-    try {
-      // updateRole(currentUser, roleName);
-
-      const res = await axios.post("/api/admin/swap-role", {currentUser, selectedEmployee, changedRole });
-      if(res.status === 200){
-          // await signOut({ redirect: false });
-          // await signIn();
-          toast.success("Role swapped successfully", { id: toastId });
-
-          setRoleUpdated(!roleUpdated);
-          fetchUsers();
-        }else{
-          toast.error("Error swapping roles", { id: toastId });
-      }
-    } catch (error) {
-      toast.error(`Api error`, { id: toastId })
-    }
-  }
 
   return (
     <div className="flex flex-col p-5 gap-y-10">
@@ -93,8 +76,8 @@ export default function ChangeRoles() {
           Manage Roles
         </h2>
       </div>
-      <div className="flex flex-col">
-        <div className="flex flex-col gap-y-7 w-full">
+      <div className="flex flex-col overflow-x-auto">
+        <div className="flex flex-col gap-y-7 w-full min-w-[580px]">
           <ul className="flex w-full font-bold text-lg text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full">
             <li className="w-1/4">Name</li>
             <li className="w-1/4">Email</li>
@@ -117,12 +100,12 @@ export default function ChangeRoles() {
                       {user.role.toLowerCase()}
                     </li>
                     <li className="w-1/4">
-                      <span className="flex *:w-1/3 gap-x-6 justify-center items-center">
+                      <span className="flex w-full gap-x-6 justify-center items-center">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <button className="p-1 bg-[var(--dark-btn)] rounded-full text-white cursor-pointer flex items-center justify-center gap-x-1">
+                            <button className="p-1 bg-[var(--dark-btn)] rounded-full text-white cursor-pointer flex w-1/2 max-lg:w-2/3 max-md:w-full items-center justify-center gap-x-1">
                               <ClipboardPen size={18} strokeWidth={1.5} />
-                              Assign role
+                              Change role
                             </button>
                           </AlertDialogTrigger>
                           <AlertDialogContent className={`justify-items-center gap-y-8`}>
@@ -133,95 +116,42 @@ export default function ChangeRoles() {
                               <AlertDialogTitle
                                 className={`text-[var(--specialtext)] capitalize text-xl`}
                               >
-                                Assign role
+                                Change role
                               </AlertDialogTitle>
-                              <div className="flex flex-col gap-y-3 py-3">
-                                <div className="flex justify-center gap-x-6 w-full text-slate-600">
-                                  <div className="flex gap-x-3 select-none">
-                                    <label
-                                      htmlFor="changeRole"
-                                      className=" cursor-pointer"
-                                    >
-                                      Change role
-                                    </label>
-                                    <input
-                                      type="radio"
-                                      name="role"
-                                      id="changeRole"
-                                      value={"changeRole"}
-                                      {...register("roleOption")}
-                                    />
-                                  </div>
-                                  <div className="flex gap-x-3">
-                                    <label
-                                      htmlFor="swapRole"
-                                      className=" cursor-pointer"
-                                    >
-                                      Swap roles
-                                    </label>
-                                    <input
-                                      type="radio"
-                                      name="role"
-                                      id="swapRole"
-                                      value={"swapRole"}
-                                      {...register("roleOption")}
-                                    />
-                                  </div>
-                                </div>
-                                <AlertDialogDescription
-                                  className={`text-center text-slate-400`}
-                                >
-                                  {user.role === "USER" ? (watch("roleOption") === "changeRole"
-                                    ? `Changing a user's role will remove their assigned tasks.`
-                                    : `When swapping roles, the user's tasks will be reassigned to the selected manager.`) : 
-                                    (watch("roleOption") === "changeRole" ? `Changing roles may affect existing assignments.` : `Swapping roles will reassign their tasks accordingly.`)
-                                  }
-                                </AlertDialogDescription>
-                              </div>
-                            </AlertDialogHeader>
-                            
-
-                              {watch('roleOption') === "swapRole" && 
-                              <div className="flex flex-col items-center justify-center gap-y-1 w-full">
-                                <div className="flex justify-center items-center gap-x-4 text-slate-700 w-full">
-                                  <label htmlFor="selectUser" className="text-sm">
-                                    Swap role with -
-                                  </label>
-                                  <Select
-                                    
-                                    onValueChange={(value) =>
-                                      setValue("employeeId", value)
-                                    }
-                                  >
-                                    <SelectTrigger id='selectUser' className="cursor-pointer shadow-none w-1/3 border-b px-3 text-sm text-[var(--withdarkinnertext)] capitalize">
-                                      <SelectValue placeholder="Names" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectGroup className="capitalize">
-                                        {
-                                          user.role === "MANAGER" ?
-                                          (users
-                                          .filter((u) => u.role === "USER")
-                                          .map((u) => (
-                                            <SelectItem key={u.id} value={u.id}>
-                                              {u.firstName + " " + u.lastName}
-                                            </SelectItem>
-                                          ))) : 
-                                          (users
-                                          .filter((u) => u.role === "MANAGER")
-                                          .map((u) => (
-                                            <SelectItem key={u.id} value={u.id}>
-                                              {u.firstName + " " + u.lastName}
-                                            </SelectItem>
-                                          )))
-                                        }
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <p className="text-slate-400 text-sm">{user.role === "USER" ? `Selected manager will be a new user!` : `Selected user will be a new manager!`}</p>
-                              </div>
+                              {
+                              user.role === "USER" ?
+                              <AlertDialogDescription>
+                                You are promoting the user to manager!
+                              </AlertDialogDescription> :
+                              <AlertDialogDescription className={`hidden`}></AlertDialogDescription>
                               }
+                            </AlertDialogHeader>
+                            {
+                              user.role === "MANAGER" &&
+                              <div className="flex flex-col gap-y-3 w-full items-center ">
+                                <Select 
+                                  onValueChange={(value) => setValue("employeeId", value)}
+                                >
+                                  <SelectTrigger className="cursor-pointer w-1/2 py-1 text-center rounded-md border border-orange-700 text-sm text-[var(--withdarkinnertext)] capitalize">
+                                    <SelectValue placeholder="Employees" />
+                                  </SelectTrigger>
+                                  <SelectContent  side="bottom" align="center">
+                                    <SelectGroup className="capitalize">
+                                    {
+                                      users.map((detail) => (
+                                        detail.role !== "ADMIN" && (
+                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2`}>
+                                            {detail.firstName + " " + detail.lastName} - ({(detail.role).toLowerCase()})
+                                          </SelectItem>
+                                        )
+                                      ))
+                                    }
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-sm text-slate-500 w-2/3 text-center">Selected employee will take place of this manager</p>
+                              </div>
+                            }
 
                             <AlertDialogFooter
                               className={`flex justify-center gap-x-6 *:w-1/3 items-center *:cursor-pointer w-full`}
@@ -230,7 +160,6 @@ export default function ChangeRoles() {
                                 Cancel
                               </AlertDialogCancel>
                               {
-                                watch('roleOption') === "changeRole" ? 
                                 <AlertDialogAction
                                 className={`bg-[var(--dark-btn)]/80 hover:bg-[var(--dark-btn)]`}
                                 onClick={() =>
@@ -241,19 +170,6 @@ export default function ChangeRoles() {
                                 }
                                 >
                                   Change role
-                                </AlertDialogAction>
-                                :
-                                <AlertDialogAction
-                                className={`bg-[var(--dark-btn)]/80 hover:bg-[var(--dark-btn)]`}
-                                onClick={() =>
-                                  swapRole(
-                                    user.role,
-                                    user.id,
-                                    watch('employeeId')
-                                  )
-                                }
-                                >
-                                  Swap roles
                                 </AlertDialogAction>
                               }
                             </AlertDialogFooter>

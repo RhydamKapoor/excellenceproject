@@ -8,26 +8,28 @@ datasource db {
 }
 
 model User {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  firstName String?
-  lastName  String?
-  email     String? @unique
-  password  String?
-  role      Role   @default(USER) // Default role is "User"
-
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  firstName     String?
+  lastName      String?
+  email         String?  @unique
+  password      String?
+  role          Role     @default(USER) // Default role is "User"
+  managerId     String?  @unique
   assignedUsers String[] @default([]) // Stores assigned User IDs if Manager
   tasks         String[] @default([]) // Stores assigned Task IDs if User
+  createdAt DateTime @default(now())
 }
 
 model Task {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
-  title       String?
-  description String?
-  userId      String? // Assigned user ID
-  managerId   String? // Assigned by manager ID
-  status      String @default("Pending") // Task status
+  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  title         String?
+  description   String?
+  userId        String? // Assigned user ID
+  managerId     String? // Assigned by manager ID
+  status        String  @default("Pending") // Task status
   reportMessage String?
-  feedBack String?
+  feedBack      String?
+  createdAt DateTime @default(now())
 }
 
 enum Role {
@@ -35,7 +37,6 @@ enum Role {
   MANAGER
   USER
 }
-
 
 model Otp {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId

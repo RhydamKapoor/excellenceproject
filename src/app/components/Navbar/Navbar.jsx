@@ -1,32 +1,16 @@
 "use client";
 import Link from "next/link";
 import Contents from "./Contents";
-import { Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import AsideBar from "./AsideBar";
 
 export default function Navbar() {
 
  
   return (
-    <nav className="p-6 px-5 shadow-md">
-      <div className="flex lg:justify-between items-center justify-center relative">
+    <nav className="py-2 px-5 shadow-md">
+      <div className="flex lg:justify-between items-center justify-center relative h-[64px]">
         <span className="absolute left-0 cursor-pointer lg:hidden flex items-center">
-          <Sheet>
-            <SheetTrigger>
-                <Menu color="#92613a"/>
-            </SheetTrigger>
-            <SheetContent side="left" className={`max-[400px]:w-11/12 lg:hidden bg-[var(--ourbackground)] gap-y-14`}>
-              <SheetHeader className={`items-center`}>
-                <SheetTitle className="text-xl font-semibold capitalize text-[var(--specialtext)]">
-                    Excellence technosoft
-                </SheetTitle>
-                <SheetDescription className={`text-justify`}>
-                  Quick access to your dashboard, tasks, and more
-                </SheetDescription>
-              </SheetHeader>
-              <Contents />
-            </SheetContent>
-          </Sheet>
+          <AsideBar />
         </span>
         
         <div className="flex capitalize">

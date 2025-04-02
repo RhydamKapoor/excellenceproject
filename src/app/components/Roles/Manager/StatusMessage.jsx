@@ -58,9 +58,11 @@ export default function StatusMessage({ task, fetchTasks }) {
     if (!isOpen) {
       if (!submitted) {
         setSelectedStatus("--");
+        setFeedback("")
       }
       setFeedbackBox({ id: "", value: "" });
       setSubmitted(false); // Reset submit tracker
+      setFeedback("")
     }
   };
   return (
@@ -72,7 +74,7 @@ export default function StatusMessage({ task, fetchTasks }) {
           if (value !== "--") {
             setSelectedStatus(value); // Update selectedStatus immediately
             setFeedbackBox({ id: task.id, value }); // Open the feedback box
-            setFeedback(task.feedBack || ""); // Reset feedback
+            setFeedback(""); // Reset feedback
           }
         }}
       >
@@ -109,7 +111,7 @@ export default function StatusMessage({ task, fetchTasks }) {
       {feedbackBox.id && (
         <Dialog open={!!feedbackBox.id} onOpenChange={handleDialogClose}>
           <DialogContent
-            className={`flex flex-col items-center`}
+            className={`flex flex-col items-center w-1/3 max-lg:w-1/2 max-sm:w-full`}
             aria-modal="true"
           >
             <DialogHeader>
@@ -140,7 +142,7 @@ export default function StatusMessage({ task, fetchTasks }) {
             <DialogFooter className={`flex justify-center w-full`}>
               <div className="flex justify-center w-full">
                 <button
-                  className="bg-[var(--dark-btn)] p-2 rounded-full text-white w-1/2 text-sm cursor-pointer"
+                  className="bg-[var(--dark-btn)] p-2 rounded-full text-white w-1/2 max-[1280]:w-full text-sm cursor-pointer"
                   onClick={() => {
                     changeStatus(feedbackBox.id, feedbackBox.value, feedback);
                     setSelectedStatus(feedbackBox.value);

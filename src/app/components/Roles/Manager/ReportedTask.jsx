@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 
 export default function ReportedTask({ checkTask, setCheckTask, fetchTasks }) {
   const { register, handleSubmit, watch, setValue } = useForm();
+    console.log(checkTask);
     
   const submitFeedBack = async(data, status) => {
     
@@ -122,23 +123,31 @@ export default function ReportedTask({ checkTask, setCheckTask, fetchTasks }) {
           </div>
         </div>
       </div>
-    <div className="flex flex-col gap-y-3 items-center w-full">
-        <div className="flex justify-center items-center gap-x-8 font-bold w-full">
-            <button className="text-white w-1/6 bg-[var(--dark-btn)] flex justify-center items-center gap-x-1 rounded-full py-1 cursor-pointer" onClick={handleSubmit((data) => submitFeedBack(data, 'Completed'))}>
-                <span>
-                    <CheckCheck strokeWidth={1.8} />
-                </span>
-                Accept
-            </button>
-            <button className="text-[var(--dark-btn)] border border-[var(--dark-btn)] w-1/6 flex justify-center items-center gap-x-1 cursor-pointer rounded-full py-1" onClick={handleSubmit((data) => submitFeedBack(data, 'Pending'))}>
-                <span>
-                    <X strokeWidth={1.8} />
-                </span>
-                Reject
-            </button>
+        <div className="flex flex-col gap-y-3 items-center w-full">
+        
+      {
+        checkTask.status !== "Completed" ?
+          <>
+            <div className="flex justify-center items-center gap-x-8 font-bold w-full">
+                <button className="text-white w-1/6 bg-[var(--dark-btn)] flex justify-center items-center gap-x-1 rounded-full py-1 cursor-pointer" onClick={handleSubmit((data) => submitFeedBack(data, 'Completed'))}>
+                    <span>
+                        <CheckCheck strokeWidth={1.8} />
+                    </span>
+                    Accept
+                </button>
+                <button className="text-[var(--dark-btn)] border border-[var(--dark-btn)] w-1/6 flex justify-center items-center gap-x-1 cursor-pointer rounded-full py-1" onClick={handleSubmit((data) => submitFeedBack(data, 'Pending'))}>
+                    <span>
+                        <X strokeWidth={1.8} />
+                    </span>
+                    Reject
+                </button>
+            </div>
+            <p className="text-sm text-slate-400">One of the options will be used to update the feedback and status.</p>
+          </>
+          :
+          <p className="text-sm text-green-700">The task has been completed</p>
+        }
         </div>
-        <p className="text-sm text-slate-400">One of the options will be used to update the feedback and status.</p>
-    </div>
     </div>
   );
 }

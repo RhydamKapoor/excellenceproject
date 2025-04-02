@@ -43,3 +43,8 @@ export const loginSchema = z.object({
     email: emailVerificationSchema,
     password: z.string().min(1, "Password is required")
 })
+export const editSchema = z.object({
+    firstName: nameSchema,
+    lastName: nameSchema,
+    email: emailVerificationSchema,
+})

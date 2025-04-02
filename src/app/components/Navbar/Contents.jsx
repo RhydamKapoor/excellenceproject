@@ -11,7 +11,7 @@ import { FolderKanban, ListOrdered, ListTodo, Repeat2Icon, UserRound } from "luc
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
-export default function Contents() {
+export default function Contents({setOpen}) {
     const { data: session } = useSession();
 
     const menuItems = [
@@ -46,36 +46,43 @@ export default function Contents() {
             ({ role, links }) =>
               session?.user?.role === role &&
               links.map(({icon, label, href }, i) => (
-                <Link key={i} href={href} className="capitalize lg:text-base text-lg flex rounded-full p-1 max-lg:text-[var(--specialtext)] items-center gap-x-1">
+                <Link key={i} href={href} onClick={() => setOpen(false)} className="capitalize lg:text-base text-lg flex rounded-full p-1 max-lg:text-[var(--specialtext)] items-center gap-x-1">
                   {icon} {label}
                 </Link>
               ))
           )}
-          <li className="cursor-pointer text-md max-lg:text-[var(--specialtext)] p-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <span className="capitalize flex items-center gap-x-1"><FolderKanban size={21}/> Profile</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>
-                  Hey, {session?.user?.firstName} {session?.user?.lastName}! 
-                  <span className="capitalize">({(session?.user?.role)?.toLowerCase()})</span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className={`cursor-pointer items-center`} asChild>
-                  <Link href={`/dashboard/editprofile`}>
-                    Your Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className={`cursor-pointer text-red-600`}
-                  onClick={() => signOut()}
-                >
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <li className="cursor-pointer max-lg:text-[var(--specialtext)] p-1">
+            <span className="flex max-lg:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <span className="capitalize flex items-center gap-x-1 text-base"><FolderKanban size={21}/> Profile</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>
+                    Hey, {session?.user?.firstName} {session?.user?.lastName}! 
+                    <span className="capitalize">({(session?.user?.role)?.toLowerCase()})</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className={`cursor-pointer items-center`} asChild>
+                    <Link href={`/dashboard/editprofile`}>
+                      Your Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={`cursor-pointer text-red-600`}
+                    onClick={() => signOut()}
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+            <span className="capitalize flex items-center gap-x-1 lg:hidden text-lg">
+            <Link href={`/dashboard/editprofile`} className="flex gap-x-1 items-center">
+              <FolderKanban size={21}/> Profile
+            </Link>
+            </span>
           </li>
 
         </div>

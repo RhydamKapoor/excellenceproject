@@ -4,8 +4,8 @@ import { editSchema } from "@/schemas/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { format } from "date-fns";
-import { Settings } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { LogOut, Settings } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -53,7 +53,8 @@ export default function EditProfileComp() {
     }
   };
   return (
-    <div className="flex max-md:flex-col h-full w-full max-md:gap-y-8">
+    <div className="flex max-md:flex-col h-full w-full max-md:gap-y-8 relative">
+      <span className="absolute top-3 right-4 cursor-pointer" onClick={() => signOut()}><LogOut size={32} className="bg-red-600 text-slate-100 rounded-full p-1.5"/></span>
       <div className="flex flex-col justify-center items-center gap-y-7 max-sm:gap-y-5 h-full w-1/4 max-md:w-full max-md:h-1/4 py-6 border-r-2 shadow-lg">
         <span className="bg-[var(--specialtext)]/95 rounded-full w-60 h-6w-60 max-lg:w-44 max-lg:h-44 max-md:w-24 max-md:h-24 text-6xl max-md:text-3xl tracking-wide uppercase text-white aspect-square flex justify-center items-center">
           {(session?.user?.firstName?.charAt(0) || "") +

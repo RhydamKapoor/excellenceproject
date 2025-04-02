@@ -54,7 +54,7 @@ export default function Contents() {
           <li className="cursor-pointer text-md max-lg:text-[var(--specialtext)] p-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <span className="capitalize flex items-center gap-x-1 text-lg"><FolderKanban size={21}/> Profile</span>
+                <span className="capitalize flex items-center gap-x-1"><FolderKanban size={21}/> Profile</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
                 <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>

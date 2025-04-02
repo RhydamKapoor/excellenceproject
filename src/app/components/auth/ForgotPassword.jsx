@@ -164,41 +164,47 @@ export default function ForgotPassword({ setForgotPassword }) {
             </div>
             :
             <div className="flex flex-col gap-y-5">
-            <div className="flex flex-col relative">
-                <input
-                type="text"
-                id="email"
-                className="w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)] lowercase"
-                {...register("email")}
-                />
-                <label
-                htmlFor="email"
-                className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                    watch("email") && `-translate-x-2 scale-90 -translate-y-8.5`
-                }`}
-                >
-                email
-                </label>
-            </div>
+              <div className="flex flex-col relative">
+                  <input
+                  type="text"
+                  id="email"
+                  className="w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)] lowercase"
+                  {...register("email")}
+                  />
+                  <label
+                  htmlFor="email"
+                  className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
+                      watch("email") && `-translate-x-2 scale-90 -translate-y-8.5`
+                  }`}
+                  >
+                  email
+                  </label>
+              </div>
             
             {
                 verifyOtp.sent && 
-                <div className="flex flex-col relative">
-                <input
-                type="number"
-                id="otp"
-                className="w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)] lowercase"
-                {...register("otp")}
-                />
-                <label
-                htmlFor="otp"
-                className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                    watch("otp") && `-translate-x-2 scale-90 -translate-y-8.5`
-                }`}
-                >
-                OTP
-                </label>
+                <div className="flex flex-col">
+                  <div className="flex flex-col relative">
+                    <input
+                    type="number"
+                    id="otp"
+                    className="w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)] lowercase"
+                    {...register("otp")}
+                    />
+                    <label
+                    htmlFor="otp"
+                    className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
+                        watch("otp") && `-translate-x-2 scale-90 -translate-y-8.5`
+                    }`}
+                    >
+                    OTP
+                    </label>
+                  </div>
+                  <div className="flex justify-end px-4">
+                      <button type="button" className="text-sm cursor-pointer" onClick={sendOtp}>Resend OTP</button>
+                  </div>
                 </div>
+                
             }
             </div>
 

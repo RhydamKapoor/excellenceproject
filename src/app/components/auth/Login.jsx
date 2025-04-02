@@ -1,5 +1,5 @@
 "use client";
-import { Eye, EyeClosed } from "lucide-react";
+import { Eye, EyeClosed, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoolToggle } from "react-haiku";
@@ -13,6 +13,10 @@ import ForgotPassword from "./ForgotPassword";
 
 export default function Login() {
   const [forgotPassword, setForgotPassword] = useState(false);
+  const [messages, setMessages] = useState({
+    errorMsg: '',
+    loadMsg: ''
+  });
   const {
     register,
     handleSubmit,
@@ -30,6 +34,7 @@ export default function Login() {
       const { email, password } = data;
 
       const toastId = toast.loading("Processing...");
+      setMessages({loadMsg: "Verifying..."});
       try {
         const res = await signIn("credentials", {
           redirect: false,
@@ -39,11 +44,14 @@ export default function Login() {
         if (res?.ok) {
           toast.success("Login successful!", { id: toastId });
           router.push("/dashboard");
+          setMessages({loadMsg: ""});
         } else {
-          toast.error(res?.error || "Invalid credentials", { id: toastId });
+          toast.error(res?.error || `Something went wrong!`, { id: toastId });
+          setMessages({errorMsg: res?.error || "Auth error"})
         }
       } catch (error) {
         toast.error(res.error || "Auth error", { id: toastId });
+        setMessages({errorMsg: res?.error || "Auth error"})
         console.log(error);
       }
     }
@@ -115,7 +123,12 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-y-4 items-center w-full">
+          <div className="flex flex-col gap-y-4 items-center w-full relative">
+          <span className={` text-sm absolute -top-7 flex gap-x-1 items-center ${(messages.errorMsg || messages.loadMsg) ? `visible` : `invisible`}`}>
+            {messages.errorMsg && <span className="text-red-500 flex justify-center items-center"><X size={18} strokeWidth={2.6}/>{messages.errorMsg}</span>}
+            {messages.loadMsg && <span className="text-slate-700 animate-pulse flex justify-center items-center">{messages.loadMsg}</span>}
+            <span className={` ${(messages.errorMsg || messages.loadMsg) ? `hidden` : `block`}`}>message</span>
+          </span>
             <button
               type="submit"
               className="bg-[var(--secondary-color)] py-3 w-full text-[var(--dark-btn)] rounded-full font-bold cursor-pointer"

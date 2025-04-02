@@ -15,7 +15,8 @@ export default function Login() {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [messages, setMessages] = useState({
     errorMsg: '',
-    loadMsg: ''
+    loadMsg: '',
+    successMsg: ''
   });
   const {
     register,
@@ -33,7 +34,7 @@ export default function Login() {
     if (data) {
       const { email, password } = data;
 
-      const toastId = toast.loading("Processing...");
+      // const toastId = toast.loading("Processing...");
       setMessages({loadMsg: "Verifying..."});
       try {
         const res = await signIn("credentials", {
@@ -42,15 +43,15 @@ export default function Login() {
           password,
         });
         if (res?.ok) {
-          toast.success("Login successful!", { id: toastId });
+          // toast.success("Login successful!", { id: toastId });
+          setMessages({successMsg: "Login successfully!"});
           router.push("/dashboard");
-          setMessages({loadMsg: ""});
         } else {
-          toast.error(res?.error || `Something went wrong!`, { id: toastId });
+          // toast.error(res?.error || `Something went wrong!`, { id: toastId });
           setMessages({errorMsg: res?.error || "Auth error"})
         }
       } catch (error) {
-        toast.error(res.error || "Auth error", { id: toastId });
+        // toast.error(res.error || "Auth error", { id: toastId });
         setMessages({errorMsg: res?.error || "Auth error"})
         console.log(error);
       }
@@ -127,6 +128,7 @@ export default function Login() {
           <span className={` text-sm absolute -top-7 flex gap-x-1 items-center ${(messages.errorMsg || messages.loadMsg) ? `visible` : `invisible`}`}>
             {messages.errorMsg && <span className="text-red-500 flex justify-center items-center"><X size={18} strokeWidth={2.6}/>{messages.errorMsg}</span>}
             {messages.loadMsg && <span className="text-slate-700 animate-pulse flex justify-center items-center">{messages.loadMsg}</span>}
+            {messages.successMsg && <span className="text-green-600 animate-pulse flex justify-center items-center">{messages.successMsg}</span>}
             <span className={` ${(messages.errorMsg || messages.loadMsg) ? `hidden` : `block`}`}>message</span>
           </span>
             <button

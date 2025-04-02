@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBoolToggle } from "react-haiku";
 import { useForm } from "react-hook-form";
-import toast from "react-hot-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Select,
@@ -21,7 +20,8 @@ import { useState } from "react";
 export default function Signup() {
   const [messages, setMessages] = useState({
     errorMsg: '',
-    loadMsg: ''
+    loadMsg: '',
+    successMsg: ''
   });
   const {
     register,
@@ -39,20 +39,20 @@ export default function Signup() {
   const onSubmit = async (data) => {
     
     if (data) {
-      const toastId = toast.loading("Processing...");
+      // const toastId = toast.loading("Processing...");
       setMessages({loadMsg: "Verifying..."});
       try {
         const res = await axios.post("/api/auth/signup", data);
         if (res.status === 200) {
-          toast.success("Register successfully!", { id: toastId });
+          // toast.success("Register successfully!", { id: toastId });
+          setMessages({successMsg: "Register successfully!"});
           router.push("/login");
-          setMessages({loadMsg: ""});
         } else {
-          toast.error(`Something went wrong!`, { id: toastId });
+          // toast.error(`Something went wrong!`, { id: toastId });
           setMessages({errorMsg: res?.error || "Auth error"})
         }
       } catch (error) {
-        toast.error(error?.response?.data?.message, { id: toastId });
+        // toast.error(error?.response?.data?.message, { id: toastId });
         console.log(error);
         setMessages({errorMsg: error?.response?.data?.message || "Auth error"})
       }
@@ -214,6 +214,7 @@ export default function Signup() {
         <span className={` text-sm absolute -top-7 flex gap-x-1 items-center ${(messages.errorMsg || messages.loadMsg) ? `visible` : `invisible`}`}>
             {messages.errorMsg && <span className="text-red-500 flex justify-center items-center"><X size={18} strokeWidth={2.6}/>{messages.errorMsg}</span>}
             {messages.loadMsg && <span className="text-slate-700 animate-pulse flex justify-center items-center">{messages.loadMsg}</span>}
+            {messages.successMsg && <span className="text-green-600 animate-pulse flex justify-center items-center">{messages.successMsg}</span>}
             <span className={` ${(messages.errorMsg || messages.loadMsg) ? `hidden` : `block`}`}>message</span>
           </span>
         <button

@@ -10,14 +10,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 
-export default function EditProfileComp({ session }) {
-  const { update } = useSession();
+export default function EditProfileComp() {
+  const { data: session, update } = useSession();
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
   } = useForm({
+    defaultValues: {firstName: session?.user?.firstName,lastName: session?.user?.lastName,email: session?.user?.email, },
     resolver: zodResolver(editSchema),
   });
   const [disable, setDisable] = useState(true);

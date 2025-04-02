@@ -81,25 +81,25 @@ export default function DashboardComp() {
   const countUsers = adminDetail.filter(detail => detail.role === "USER").length;
   const countManagers = adminDetail.filter(detail => detail.role === "MANAGER").length;
   return (
-    <div className="flex w-full p-5 h-full">
-        <div className="flex w-1/3 h-full relative justify-center">
+    <div className="flex w-full p-5 h-full max-[1200px]:justify-center">
+        <div className="flex w-1/3 max-[1200px]:hidden h-full relative justify-center">
             <Image src={`dashboard.svg`} fill sizes="100px" alt="Dashbaord" priority/>
         </div>
-        <div className="flex w-2/3 flex-col h-full justify-between items-center sm:p-20 font-[family-name:var(--font-geist-sans)]">
+        <div className="flex w-2/3 max-[1200px]:w-3/4 flex-col h-full max-md:justify-center max-md:gap-y-20 justify-between items-center sm:p-20 font-[family-name:var(--font-geist-sans)]">
             <div className="flex flex-col items-center">
-                <h1 className="text-3xl font-bold capitalize">Welcome, <span className="text-[var(--specialtext)]">{session?.user?.firstName} {session?.user?.lastName}</span> </h1>
+                <h1 className="text-3xl font-bold capitalize text-center flex gap-x-2 max-[460px]:flex-col">Welcome, <span className="text-[var(--specialtext)] ">{session?.user?.firstName} {session?.user?.lastName}</span> </h1>
                 <p>{session?.user?.role === "USER" ? `Have a look at your task for today` : (session?.user?.role === "ADMIN" ? `Wanna change the roles?` : `Assign any task to your users`)}</p>
             </div>
 
-            <div className="flex flex-col w-1/2 items-center">
-                <h1 className="text-lg text-slate-800 font-bold">{session?.user?.role === 'USER' ? `Your Tasks` : session?.user?.role === 'MANAGER' ? `Total Assigned Task` : `Your employees`}</h1>
+            <div className="flex flex-col w-1/2 max-[1200px]:w-2/3 items-center">
+                <h1 className="text-lg text-center text-slate-800 font-bold">{session?.user?.role === 'USER' ? `Your Tasks` : session?.user?.role === 'MANAGER' ? `Total Assigned Task` : `Your employees`}</h1>
                 <div className="flex flex-col items-center">
                     {session?.user?.role === "ADMIN" ? 
                       <h3><NumberTicker value={adminDetail.length - 1}  className="text-5xl py-3 text-[var(--specialtext)]"/></h3>
                       : <h3><NumberTicker value={tasks.length}  className="text-5xl py-3 text-[var(--specialtext)]"/></h3>
                     }
                 </div>
-                <div className={`flex flex-col gap-y-3 uppercase w-3/4 font-[family-name:var(--font-roboto)] font-semibold border rounded-xl shadow-xl p-8`}>
+                <div className={`flex flex-col gap-y-3 uppercase w-3/4 min-w-[280px] font-[family-name:var(--font-roboto)] font-semibold border rounded-xl shadow-xl p-8`}>
                 {
                   session?.user?.role === "ADMIN" ? (
                     <div className="flex flex-col gap-y-3 w-full">

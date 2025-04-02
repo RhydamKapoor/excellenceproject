@@ -111,7 +111,7 @@ export default function UserTask() {
           </div>
         </>
       ) : (
-        <div className="flex relative">
+        <div className="flex relative *:w-1/2 max-md:*:w-full max-md:flex-col *:gap-y-4 gap-y-9">
           <span
             className="absolute left-0 cursor-pointer"
             onClick={() => setTaskDetail({ id: "", title: "" })}
@@ -120,7 +120,7 @@ export default function UserTask() {
           </span>
 
           {/* Submit Report Form */}
-          <div className="flex flex-col items-center gap-y-8 w-1/2">
+          <div className="flex flex-col items-center">
             <div className="flex">
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">
                 Submit your report
@@ -183,7 +183,7 @@ export default function UserTask() {
 
 
           {/* Feedback */}
-          <div className="flex flex-col items-center gap-y-8 w-1/2">
+          <div className="flex flex-col items-center">
             <div className="flex">
               <h2 className="text-2xl font-semibold text-[var(--lightText)]">
                 Feedback

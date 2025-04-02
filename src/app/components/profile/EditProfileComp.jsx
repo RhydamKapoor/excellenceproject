@@ -52,8 +52,8 @@ export default function EditProfileComp({ session }) {
     }
   };
   return (
-    <div className="flex max-md:flex-col h-full w-full">
-      <div className="flex flex-col justify-center items-center gap-y-7 h-full w-1/4 max-md:w-full max-md:h-1/3 py-6 border-r-2 shadow-lg">
+    <div className="flex max-md:flex-col h-full w-full max-md:gap-y-8">
+      <div className="flex flex-col justify-center items-center gap-y-7 max-sm:gap-y-5 h-full w-1/4 max-md:w-full max-md:h-1/4 py-6 border-r-2 shadow-lg">
         <span className="bg-[var(--specialtext)]/95 rounded-full w-60 h-6w-60 max-lg:w-44 max-lg:h-44 max-md:w-24 max-md:h-24 text-6xl max-md:text-3xl tracking-wide uppercase text-white aspect-square flex justify-center items-center">
           {(session?.user?.firstName?.charAt(0) || "") +
             (session?.user?.lastName?.charAt(0) || "")}
@@ -67,18 +67,18 @@ export default function EditProfileComp({ session }) {
           Edit profile
         </button>
       </div>
-      <div className="w-3/4 flex flex-col justify-center items-center p-3 gap-y-10">
+      <div className="w-3/4 max-md:w-full flex flex-col justify-center items-center p-3 gap-y-10">
         {/* <div className="flex justify-center py-3">
             <h1 className="capitalize">Welcome, {(session?.user?.firstName) + " " + (session?.user?.lastName)}</h1>
             <h1 className="capitalize text-3xl text-[var(--dark-btn)] font-bold">Your profile</h1>
         </div> */}
         <form
-          className={`flex flex-col items-center w-1/2 *:w-full ${
+          className={`flex flex-col items-center w-1/2 max-md:w-full *:w-full ${
             disable ? `gap-y-6` : `gap-y-4`
           } text-lg`}
           onSubmit={handleSubmit(editProfile)}
         >
-          <div className="flex sm:flex-row flex-col sm:*:w-1/2 gap-x-3">
+          <div className={`flex sm:flex-row flex-col ${disable ? `max-sm:gap-y-6` : `max-sm:gap-y-4`} sm:*:w-1/2 gap-x-3`}>
             <div className="flex flex-col">
               <div className="flex flex-col relative">
                 <input

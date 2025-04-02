@@ -21,7 +21,6 @@ import { useRole } from "@/context/RoleContext";
 
 export default function ChangeRoles() {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: { roleOption: "changeRole" },
   });
@@ -154,7 +153,7 @@ export default function ChangeRoles() {
                             }
 
                             <AlertDialogFooter
-                              className={`flex justify-center gap-x-6 *:w-1/3 items-center *:cursor-pointer w-full`}
+                              className={`flex min-[450px]:flex-row justify-center gap-x-6 *:w-1/3 max-[450px]:*:w-full items-center *:cursor-pointer w-full`}
                             >
                               <AlertDialogCancel className={` cursor-pointer`}>
                                 Cancel

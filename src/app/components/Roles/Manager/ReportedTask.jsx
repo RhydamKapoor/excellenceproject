@@ -40,8 +40,8 @@ export default function ReportedTask({ checkTask, setCheckTask, fetchTasks }) {
         <CircleArrowLeft color="#92613a" strokeWidth={1.5} size={28} />
       </span>
 
-      <div className="flex w-full">
-        <div className="flex flex-col gap-y-6 items-center w-1/2">
+      <div className="flex max-md:flex-col *:w-1/2 max-md:*:w-full gap-y-7 w-full">
+        <div className="flex flex-col gap-y-2 items-center">
           <div className="flex justify-center relative w-full">
             <h2 className="text-2xl font-semibold text-[var(--lightText)]">
               Task report
@@ -92,8 +92,8 @@ export default function ReportedTask({ checkTask, setCheckTask, fetchTasks }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center w-1/2">
-          <div className="flex flex-col gap-y-6 items-center relative w-full">
+        <div className="flex flex-col items-center">
+          <div className="flex flex-col gap-y-2 items-center relative w-full">
             <h2 className="text-2xl font-semibold text-[var(--lightText)]">
               Feedback
             </h2>
@@ -128,24 +128,24 @@ export default function ReportedTask({ checkTask, setCheckTask, fetchTasks }) {
       {
         checkTask.status !== "Completed" ?
           <>
-            <div className="flex justify-center items-center gap-x-8 font-bold w-full">
-                <button className="text-white w-1/6 bg-[var(--dark-btn)] flex justify-center items-center gap-x-1 rounded-full py-1 cursor-pointer" onClick={handleSubmit((data) => submitFeedBack(data, 'Completed'))}>
+            <div className="flex max-[450px]:flex-col gap-y-3 justify-center items-center gap-x-8 font-bold w-full">
+                <button className="text-white w-1/6 max-md:w-1/3 max-[450px]:!w-full bg-[var(--dark-btn)] flex justify-center items-center gap-x-1 rounded-full py-1 cursor-pointer" onClick={handleSubmit((data) => submitFeedBack(data, 'Completed'))}>
                     <span>
                         <CheckCheck strokeWidth={1.8} />
                     </span>
                     Accept
                 </button>
-                <button className="text-[var(--dark-btn)] border border-[var(--dark-btn)] w-1/6 flex justify-center items-center gap-x-1 cursor-pointer rounded-full py-1" onClick={handleSubmit((data) => submitFeedBack(data, 'Pending'))}>
+                <button className="text-[var(--dark-btn)] border border-[var(--dark-btn)] w-1/6 max-md:w-1/3 max-[450px]:!w-full flex justify-center items-center gap-x-1 cursor-pointer rounded-full py-1" onClick={handleSubmit((data) => submitFeedBack(data, 'Pending'))}>
                     <span>
                         <X strokeWidth={1.8} />
                     </span>
                     Reject
                 </button>
             </div>
-            <p className="text-sm text-slate-400">One of the options will be used to update the feedback and status.</p>
+            <p className="text-sm text-slate-400 text-center">One of the options will be used to update the feedback and status.</p>
           </>
           :
-          <p className="text-sm text-green-700">The task has been completed</p>
+          <p className="text-sm text-green-700 text-center">The task has been completed.</p>
         }
         </div>
     </div>

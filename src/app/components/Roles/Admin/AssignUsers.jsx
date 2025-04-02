@@ -123,7 +123,7 @@ export default function AssignUsers() {
                                 <Select
                                   onValueChange={(value) => setValue("userId", value)}
                                 >
-                                  <SelectTrigger className="cursor-pointer w-2/3 py-1 text-center rounded-md border border-orange-700 text-sm text-[var(--withdarkinnertext)] capitalize">
+                                  <SelectTrigger className="cursor-pointer w-2/3 max-sm:w-full py-1 text-center rounded-md border border-orange-700 text-sm text-[var(--withdarkinnertext)] capitalize">
                                     <SelectValue placeholder="Employees" />
                                   </SelectTrigger>
                                   <SelectContent>

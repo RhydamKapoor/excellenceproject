@@ -14,19 +14,19 @@ export default function Landing({session}) {
         </p>
       </div>
 
-      <div className="flex gap-4 w-full justify-center">
+      <div className="flex gap-4 w-full justify-center max-[460px]:flex-col items-center">
         {session ? (
           <Link href={`/dashboard`} className="bg-[var(--dark-btn)] text-white px-6 py-2 rounded-full w-1/2 max-md:w-2/3 max-[400px]:!w-full">
             Get started
           </Link>
         ) : (
           <>
-            <Link href="/login" className="w-1/3 *:cursor-pointer">
+            <Link href="/login" className="w-1/3 max-[460px]:w-full *:cursor-pointer">
               <button className="bg-[var(--dark-btn)] text-white px-6 py-2 rounded-full w-full">
                 Login
               </button>
             </Link>
-            <Link href="/signup" className="w-1/3 *:cursor-pointer">
+            <Link href="/signup" className="w-1/3 max-[460px]:w-full *:cursor-pointer">
               <button
                 variant="outline"
                 className="border border-[var(--dark-btn)] text-[var(--dark-btn)] px-6 py-2 rounded-full w-full"

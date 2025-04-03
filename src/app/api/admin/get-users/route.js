@@ -9,7 +9,18 @@ export async function GET() {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        managerId: true,
+        assignedUsers: true,
+        tasks: true,
+      }
+    });
 
     return Response.json(users, { status: 200 });
   } catch (error) {

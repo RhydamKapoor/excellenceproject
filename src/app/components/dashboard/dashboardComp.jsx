@@ -31,18 +31,14 @@ export default function DashboardComp() {
     try {
       const { data } = await axios.get("/api/manager/get-tasks");
       if(data){
-        console.log(data);
-        
         setTasks(data);
         toast.success(`Have a great day!`, {id: toastId})
       }else{
         toast.error(`Couldn't fetch the data`, {id: toastId})
       }
-      
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch tasks", {id: toastId});
       console.log(error);
-      
     }
   };
 
@@ -50,11 +46,10 @@ export default function DashboardComp() {
     const toastId = toast.loading(`Fetching users...`)
     try {
       const { data } = await axios.get("/api/admin/get-users");
-      console.log(data);
+      // console.log(data);
 
       toast.success(`Welcome, Admin!`, {id: toastId})
       setAdminDetail(data);
-      console.log(data);
       
     } catch (error) {
         toast.error(error.response?.data?.error || "Failed to fetch users", {id: toastId});
@@ -64,7 +59,6 @@ export default function DashboardComp() {
   useEffect(() => {
     if(session?.user?.role === 'USER'){
         userTaskFetch();
-        console.log(`Hey`);
         
     }else if(session?.user?.role === 'MANAGER'){
         assignedTaskFetch();

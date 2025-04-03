@@ -110,7 +110,7 @@ export default function Login() {
                 >
                   password
                 </label>
-                <span className="absolute right-5 top-1/2 -translate-y-1/2">
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 cursor-pointer">
                   {show ? (
                     <Eye size={20} onClick={() => setShow()} />
                   ) : (

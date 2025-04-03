@@ -38,6 +38,11 @@ export default function Contents({setOpen}) {
           ],
         },
     ];
+    const changeRoute = () => {
+      if(window.innerWidth < 1023){
+        setOpen(false)
+      }
+    }
   return (
     <div className="flex h-full">
       <ul className="flex lg:flex-row items-center flex-col lg:justify-between w-full gap-y-1 gap-x-5 px-6 max-lg:h-full font-semibold text-slate-800 ">
@@ -46,7 +51,7 @@ export default function Contents({setOpen}) {
             ({ role, links }) =>
               session?.user?.role === role &&
               links.map(({icon, label, href }, i) => (
-                <Link key={i} href={href} onClick={() => setOpen(false)} className="capitalize lg:text-base text-lg flex rounded-full p-1 max-lg:text-[var(--specialtext)] items-center gap-x-1">
+                <Link key={i} href={href} onClick={changeRoute} className="capitalize lg:text-base text-lg flex rounded-full p-1 max-lg:text-[var(--specialtext)] items-center gap-x-1">
                   {icon} {label}
                 </Link>
               ))
@@ -79,7 +84,7 @@ export default function Contents({setOpen}) {
               </DropdownMenu>
             </span>
             <span className="capitalize flex items-center gap-x-1 lg:hidden text-lg">
-            <Link href={`/dashboard/editprofile`} className="flex gap-x-1 items-center">
+            <Link href={`/dashboard/editprofile`} className="flex gap-x-1 items-center" onClick={changeRoute}>
               <FolderKanban size={21}/> Profile
             </Link>
             </span>

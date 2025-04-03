@@ -38,7 +38,6 @@ export default function CreateTask() {
     try {
       const { data } = await axios.get("/api/manager/get-tasks");
       if(data){
-        console.log(data);
         
         setTasks(data);        
         toast.success(`Fetched Successfully!`, {id: toastId})

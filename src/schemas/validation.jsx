@@ -47,4 +47,6 @@ export const editSchema = z.object({
     firstName: nameSchema,
     lastName: nameSchema,
     email: emailVerificationSchema,
+    newPassword:passwordVerificationSchema.optional().or(z.literal('')),
+    oldPassword: z.string().min(1, "Invalid password")
 })

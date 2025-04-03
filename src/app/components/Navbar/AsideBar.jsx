@@ -13,8 +13,8 @@ import { useState } from "react";
 export default function AsideBar() {
   const [open, setOpen] = useState(false);
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger>
+    <Sheet open={open} onOpenChange={() => setOpen(!open)}>
+      <SheetTrigger className="cursor-pointer">
         <Menu color="#92613a" />
       </SheetTrigger>
       <SheetContent

@@ -2,26 +2,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { ArrowRightLeft, ClipboardPen } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRole } from "@/context/RoleContext";
+import RowChangeRole from "./RowChangeRole";
 // import { signIn, signOut } from "next-auth/react";
 
 export default function ChangeRoles() {
   const [users, setUsers] = useState([]);
-  const { register, handleSubmit, watch, setValue } = useForm({
+  const { watch, setValue } = useForm({
     defaultValues: { roleOption: "changeRole" },
   });
   const { roleUpdated, setRoleUpdated } = useRole();
@@ -45,19 +33,25 @@ export default function ChangeRoles() {
   };
 
   const updateRole = async (userId, newRole) => {
-    console.log(userId, newRole, watch("employeeId"))
+    const employeeId = watch("employeeId");
+    if (newRole === "USER" && !employeeId) {
+      toast("Please select an employee!", {icon: '⚠️'});
+      return;
+    }
     const toastId = toast.loading(`Changing role...`);
     try {
       if(newRole === "MANAGER"){
         await axios.post("/api/admin/update-role", { userId, newRole });
       }else{
-        await axios.post("/api/admin/update-role", { userId, newRole, employeeId: watch("employeeId") });
+        await axios.post("/api/admin/update-role", { userId, newRole, employeeId });
       }
 
       toast.success("Role updated successfully", { id: toastId });
+      setValue("employeeId", "")
       setRoleUpdated(!roleUpdated);
       fetchUsers();
     } catch (error) {
+      setValue("employeeId", "")
       toast.error(error.response?.data?.error || "Error updating role", {
         id: toastId,
       });
@@ -81,9 +75,26 @@ export default function ChangeRoles() {
             <li className="w-1/4">Action</li>
           </ul>
           <div className="flex flex-col gap-y-3 text-sm">
-            {users?.map(
+          {users && (
+            <>
+              {/* First render all USER roles */}
+              {users
+                .filter((user) => user.role === "USER")
+                .map((user) => (
+                  <RowChangeRole key={user.id} user={user} users={users} updateRole={updateRole} setValue={setValue}/>
+                ))}
+
+              {/* Then render all MANAGER roles */}
+              {users
+                .filter((user) => user.role === "MANAGER")
+                .map((user) => (
+                  <RowChangeRole key={user.id} user={user} users={users} updateRole={updateRole} setValue={setValue}/>
+                ))}
+            </>
+          )}
+            {/* {users?.map(
               (user, i) =>
-                user.role !== "ADMIN" && (
+                (user.role !== "ADMIN" && user.role === "USER") && (
                   <ul
                     className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full"
                     key={user.id}
@@ -131,13 +142,27 @@ export default function ChangeRoles() {
                                   <SelectTrigger className="cursor-pointer w-1/2 py-1 text-center rounded-md border border-orange-700 text-sm text-[var(--withdarkinnertext)] capitalize">
                                     <SelectValue placeholder="Employees" />
                                   </SelectTrigger>
-                                  <SelectContent  side="bottom" align="center">
+                                  <SelectContent side="bottom" align="center">
                                     <SelectGroup className="capitalize">
+                                      <SelectLabel className={`text-[var(--specialtext)] text-base font-bold`}>Users</SelectLabel>
                                     {
                                       users.map((detail) => (
-                                        detail.role !== "ADMIN" && (
-                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2`}>
-                                            {detail.firstName + " " + detail.lastName} - ({(detail.role).toLowerCase()})
+                                        (detail.role !== "ADMIN" && detail.role === "USER") && (
+                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2 text-sm text-slate-600`}>
+                                            {detail.firstName + " " + detail.lastName}
+                                          </SelectItem>
+                                        )
+                                      ))
+                                    }
+                                    </SelectGroup>
+
+                                    <SelectGroup className="capitalize">
+                                      <SelectLabel className={`text-[var(--specialtext)] text-base font-bold`}>Managers</SelectLabel>
+                                    {
+                                      users.map((detail) => (
+                                        (detail.role !== "ADMIN" && detail.role === "MANAGER") && (
+                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2 text-sm text-slate-600`}>
+                                            {detail.firstName + " " + detail.lastName}
                                           </SelectItem>
                                         )
                                       ))
@@ -175,7 +200,7 @@ export default function ChangeRoles() {
                     </li>
                   </ul>
                 )
-            )}
+            )} */}
           </div>
         </div>
       </div>

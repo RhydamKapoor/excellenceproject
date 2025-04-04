@@ -51,13 +51,14 @@ export default function CreateTask() {
   };
 
   const createTask = async (data) => {
+    const toastId = toast.loading(`Creating tasks...`)
     try {
       await axios.post("/api/manager/create-task", data);
-      toast.success("Task created successfully");
+      toast.success("Task created successfully", {id: toastId});
       fetchTasks();
       reset(); // ✅ Reset form fields after submission
     } catch (error) {
-      toast.error(error.response?.data?.error || "Error creating task");
+      toast.error(error.response?.data?.error || "Error creating task", {id: toastId});
     }
   };
   const reassignTask = async(taskId) => {
@@ -140,7 +141,7 @@ export default function CreateTask() {
                 </SelectContent>
               </Select>
               <div className="flex max-lg:flex-col gap-y-3 items-center w-full justify-center gap-x-5">
-                <div className=" w-1/3 max-lg:w-2/3 max-[570px]:!w-full overflow-scroll">
+                <div className=" w-1/3 max-lg:w-2/3 max-[570px]:!w-full">
                   <Dialog>
                     <DialogTrigger asChild>
                       <button

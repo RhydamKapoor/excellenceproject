@@ -61,7 +61,7 @@ export default function AssignUsers() {
     try {
       const res = await axios.post("/api/admin/remove-user", {userId, managerId});
       if(res.status === 200){
-        toast.success(`User assigned!`, { id: toastId})
+        toast.success(`User removed!`, { id: toastId})
         fetchUsers();
       }else{
         toast.error("Failed to assign user", {

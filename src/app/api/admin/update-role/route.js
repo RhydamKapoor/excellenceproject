@@ -13,7 +13,7 @@ export async function POST(req) {
     if(newRole === "MANAGER"){
       const user = await prisma.user.update({
           where: { id: userId },
-          data: { role: newRole },
+          data: { role: newRole, managerId: "" },
       });
       
       if (!user) {

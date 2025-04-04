@@ -77,7 +77,7 @@ export default function DashboardComp() {
   return (
     <div className="flex w-full p-5 h-full max-[1200px]:justify-center">
         <div className="flex w-1/3 max-[1200px]:hidden h-full relative justify-center">
-            <Image src={`dashboard.svg`} fill sizes="100px" alt="Dashbaord" priority/>
+            <Image src={`dashboard.svg`} fill sizes="100px" alt="Dashbaord" priority className="max-[1200px]:hidden"/>
         </div>
         <div className="flex w-2/3 max-[1200px]:w-3/4 flex-col h-full max-md:justify-center max-md:gap-y-20 justify-between items-center sm:p-20 font-[family-name:var(--font-geist-sans)]">
             <div className="flex flex-col items-center">

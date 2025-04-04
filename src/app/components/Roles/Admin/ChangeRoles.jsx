@@ -35,7 +35,6 @@ export default function ChangeRoles() {
     try {
       const { data } = await axios.get("/api/admin/get-users");
       toast.success(`Have a look!`, { id: toastId });
-      console.log(data);
       setRoleUpdated(!roleUpdated);
       setUsers(data);
     } catch (error) {
@@ -62,8 +61,6 @@ export default function ChangeRoles() {
       toast.error(error.response?.data?.error || "Error updating role", {
         id: toastId,
       });
-    } finally {
-      setLoading(false);
     }
   };
   

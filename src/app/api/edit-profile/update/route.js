@@ -15,12 +15,19 @@ export async function PUT(req) {
 
     const user = await prisma.user.findUnique({where: { id: session?.user?.id }});
     if (!user) {
-      return NextResponse.json({message: `User not found!`}, { status: 404 });
+      return NextResponse.json({error: `User not found!`}, { status: 404 });
+    }
+
+    if(email !== user.email){
+      const verifyEmail = await prisma.user.findUnique({where: { email }});
+      if(verifyEmail){
+        return NextResponse.json({error: `Email already exists!`}, { status: 400});
+      }
     }
 
     const isValid = await bcrypt.compare(oldPassword, user.password);
     if (!isValid) {
-      return NextResponse.json({message: `Invalid password`}, { status: 401 });
+      return NextResponse.json({error: `Invalid password`}, { status: 401 });
     }
 
     let updatedData = { firstName, lastName, email };

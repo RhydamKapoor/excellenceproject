@@ -72,8 +72,12 @@ export default function EditProfileComp() {
           toast.error(`Something went wrong!`, { id: toastId });
         }
       } catch (error) {
-        toast.error(error?.response?.data?.message, { id: toastId });
+        toast.error(error?.response?.data?.error, { id: toastId });
         console.log(error);
+      }finally{
+        setValue("firstName", session?.user?.firstName);
+        setValue("lastName", session?.user?.lastName);
+        setValue("email", session?.user?.email);
       }
     }
   };
@@ -225,12 +229,12 @@ export default function EditProfileComp() {
                     />
                     <label
                       htmlFor="newPassword"
-                      className={`text-[var(--specialtext)] capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-9.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200  ${
+                      className={`text-[var(--specialtext)] absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-9.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200  ${
                         watch("newPassword") &&
                         `-translate-x-2 scale-90 -translate-y-8.5`
                       }`}
                     >
-                      set a password
+                      Set a password
                     </label>
                     <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--specialtext)] cursor-pointer">
                       {show ? (

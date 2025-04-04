@@ -62,7 +62,7 @@ export default function Contents({setOpen}) {
                 <DropdownMenuTrigger asChild>
                   <span className="capitalize flex items-center gap-x-1 text-base"><FolderKanban size={21}/> Profile</span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-fit">
                   <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>
                     Hey, {session?.user?.firstName} {session?.user?.lastName}! 
                     <span className="capitalize">({(session?.user?.role)?.toLowerCase()})</span>

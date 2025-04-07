@@ -6,15 +6,27 @@ import axios from "axios";
 import { format } from "date-fns";
 import { Eye, EyeClosed, LogOut, Settings } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBoolToggle } from "react-haiku";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import Image from "next/image";
 
 export default function EditProfileComp() {
   const [show, setShow] = useBoolToggle();
   const { data: session, update } = useSession();
-  // console.log(session);
+  const [nameParts, setNameParts] = useState({ firstName: "", lastName: "" });
+  
+  // Extract first name and last name from session.user.name
+  useEffect(() => {
+    if (session?.user?.name) {
+      const nameArray = session.user.name.split(" ");
+      const firstName = nameArray[0] || "";
+      const lastName = nameArray.slice(1).join(" ") || "";
+      setNameParts({ firstName, lastName });
+      console.log("Extracted name parts:", { firstName, lastName });
+    }
+  }, [session]);
   
   const {
     register,
@@ -24,13 +36,20 @@ export default function EditProfileComp() {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      firstName: session?.user?.firstName,
-      lastName: session?.user?.lastName,
+      firstName: nameParts.firstName,
+      lastName: nameParts.lastName,
       email: session?.user?.email,
       oldPassword: "A@a123",
     },
     resolver: zodResolver(editSchema),
   });
+  
+  // Update form values when nameParts changes
+  useEffect(() => {
+    setValue("firstName", nameParts.firstName);
+    setValue("lastName", nameParts.lastName);
+  }, [nameParts, setValue]);
+  
   const [sections, setSections] = useState({
     disable: true,
     verification: false,
@@ -64,6 +83,7 @@ export default function EditProfileComp() {
               firstName: res?.data?.firstName,
               lastName: res?.data?.lastName,
               email: res?.data?.email,
+              name: `${res?.data?.firstName} ${res?.data?.lastName}`
             },
           });
           setSections({ disable: true, verification: false });
@@ -75,12 +95,22 @@ export default function EditProfileComp() {
         toast.error(error?.response?.data?.error, { id: toastId });
         console.log(error);
       }finally{
-        setValue("firstName", session?.user?.firstName);
-        setValue("lastName", session?.user?.lastName);
+        if(session?.user?.firstName && session?.user?.lastName){
+          setValue("firstName", session?.user?.firstName);
+          setValue("lastName", session?.user?.lastName);
+        }
+        if(nameParts.firstName && nameParts.lastName){
+          setValue("firstName", nameParts.firstName);
+          setValue("lastName", nameParts.lastName);
+        }
         setValue("email", session?.user?.email);
       }
     }
   };
+  
+  // Check if user is authenticated with OAuth
+  const isOAuthUser = session?.user?.provider === "google" || session?.user?.provider === "slack";
+  
   return (
     <div className="flex max-md:flex-col h-full w-full max-md:gap-y-8 relative">
       <span
@@ -93,24 +123,33 @@ export default function EditProfileComp() {
         />
       </span>
       <div className="flex flex-col justify-center items-center gap-y-7 max-sm:gap-y-5 h-full w-1/4 max-md:w-full max-md:h-1/4 py-6 border-r-2 shadow-lg">
-        <span className="bg-[var(--specialtext)]/95 rounded-full w-60 h-6w-60 max-lg:w-44 max-lg:h-44 max-md:w-24 max-md:h-24 text-6xl max-md:text-3xl tracking-wide uppercase text-white aspect-square flex justify-center items-center">
-          {(session?.user?.firstName?.charAt(0) || "") +
-            (session?.user?.lastName?.charAt(0) || "")}
-        </span>
+      {session?.user?.image ? (
+          <span className="w-52 h-52 relative max-lg:w-44 max-lg:h-44 max-md:w-24 max-md:h-24 rounded-full object-cover">
+              <Image 
+                src={session.user.image} 
+                alt={session.user.name || "Profile"} 
+                fill
+                sizes="100px"
+                priority
+                className="rounded-full object-cover"
+              />
+          </span>
+        ) : (
+          <span className="bg-[var(--specialtext)]/95 rounded-full w-60 h-6w-60 max-lg:w-44 max-lg:h-44 max-md:w-24 max-md:h-24 text-6xl max-md:text-3xl tracking-wide uppercase text-white aspect-square flex justify-center items-center">
+            {(session?.user?.firstName?.charAt(0) || nameParts.firstName?.charAt(0) || "") +
+              (session?.user?.lastName?.charAt(0) || nameParts.lastName?.charAt(0) || "")}
+          </span>
+        )}
 
-        <button
+        {!isOAuthUser && <button
           className="bg-[var(--dark-btn)] text-white py-2 md:w-2/3 max-md:w-1/2 rounded-full text-sm flex gap-x-1 justify-center items-center cursor-pointer capitalize"
           onClick={() => setSections({ ...sections, disable: false })}
         >
           <Settings size={18} />
           Edit profile
-        </button>
+        </button>}
       </div>
       <div className="w-3/4 max-md:w-full flex flex-col justify-center items-center p-3 gap-y-10">
-        {/* <div className="flex justify-center py-3">
-            <h1 className="capitalize">Welcome, {(session?.user?.firstName) + " " + (session?.user?.lastName)}</h1>
-            <h1 className="capitalize text-3xl text-[var(--dark-btn)] font-bold">Your profile</h1>
-        </div> */}
         <form
           className={`flex flex-col items-center w-1/2 max-md:w-full *:w-full ${
             sections.disable ? `gap-y-6` : `gap-y-4`
@@ -129,10 +168,10 @@ export default function EditProfileComp() {
                     <input
                       type="text"
                       id="firstName"
-                      className="capitalize border border-[var(--dark-btn)] rounded-lg outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]"
+                      className={`capitalize border border-[var(--dark-btn)] rounded-lg outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]`}
                       {...register("firstName")}
                       defaultValue={session?.user?.firstName || ""}
-                      disabled={sections.disable}
+                      disabled={sections.disable || isOAuthUser}
                     />
                     <label
                       htmlFor="firstName"
@@ -144,7 +183,7 @@ export default function EditProfileComp() {
                       First Name
                     </label>
                   </div>
-                  {!sections.disable && (
+                  {!sections.disable && !isOAuthUser && (
                     <p
                       className={`${
                         errors?.firstName ? `visible` : `invisible`
@@ -160,10 +199,10 @@ export default function EditProfileComp() {
                     <input
                       type="text"
                       id="lastName"
-                      className="capitalize w-full  border border-[var(--dark-btn)] rounded-lg outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]"
+                      className={`capitalize w-full border border-[var(--dark-btn)] rounded-lg outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]`}
                       {...register("lastName")}
                       defaultValue={session?.user?.lastName || ""}
-                      disabled={sections.disable}
+                      disabled={sections.disable || isOAuthUser}
                     />
                     <label
                       htmlFor="lastName"
@@ -175,7 +214,7 @@ export default function EditProfileComp() {
                       last Name
                     </label>
                   </div>
-                  {!sections.disable && (
+                  {!sections.disable && !isOAuthUser && (
                     <p
                       className={`${
                         errors?.lastName ? `visible` : `invisible`
@@ -192,10 +231,10 @@ export default function EditProfileComp() {
                   <input
                     type="text"
                     id="email"
-                    className="lowercase w-full border border-[var(--dark-btn)] rounded-md outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]"
+                    className={`lowercase w-full border border-[var(--dark-btn)] rounded-md outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]`}
                     {...register("email")}
                     defaultValue={session?.user?.email || ""}
-                    disabled={sections.disable}
+                    disabled={sections.disable || isOAuthUser}
                   />
                   <label
                     htmlFor="email"
@@ -207,7 +246,7 @@ export default function EditProfileComp() {
                     email
                   </label>
                 </div>
-                {!sections.disable && (
+                {!sections.disable && !isOAuthUser && (
                   <p
                     className={`${
                       errors?.email ? `visible` : `invisible`
@@ -218,7 +257,7 @@ export default function EditProfileComp() {
                 )}
               </div>
               {/* NewPassword */}
-              {!sections.disable && (
+              {!sections.disable && !isOAuthUser && (
                 <div className="flex flex-col">
                   <div className="flex flex-col relative">
                     <input
@@ -259,6 +298,24 @@ export default function EditProfileComp() {
           {sections.disable ? (
             !sections.verification && (
               <>
+                {/* Provider Info */}
+                {isOAuthUser && (
+                  <div className="flex flex-col relative">
+                    <input
+                      type="text"
+                      id="provider"
+                      className="capitalize w-full border border-[var(--dark-btn)] rounded-md outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]"
+                      defaultValue={session?.user?.provider?.toLowerCase() || ""}
+                      disabled
+                    />
+                    <label
+                      htmlFor="provider"
+                      className="text-[var(--specialtext)] capitalize absolute -top-3 left-3 scale-90 bg-[var(--ourbackground)] px-1"
+                    >
+                      Connected Account
+                    </label>
+                  </div>
+                )}
                 {/* Role */}
                 <div className="flex flex-col relative">
                   <input
@@ -269,7 +326,7 @@ export default function EditProfileComp() {
                     disabled
                   />
                   <label
-                    htmlFor="email"
+                    htmlFor="role"
                     className={`text-[var(--specialtext)] capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-9.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
                       session?.user?.role &&
                       `-translate-x-2 scale-90 -translate-y-9.5`
@@ -306,7 +363,7 @@ export default function EditProfileComp() {
                 </div>
               </>
             )
-          ) : !sections.disable && !sections.verification ? (
+          ) : !isOAuthUser ? (!sections.disable && !sections.verification ? (
             <div className="flex justify-center gap-x-4 *:w-1/3 text-white *:cursor-pointer">
               <button
                 type="button"
@@ -378,6 +435,16 @@ export default function EditProfileComp() {
                 </button>
               </div>
             </>
+          )) : (
+            <div className="flex justify-center gap-x-4 *:w-1/3 text-white *:cursor-pointer">
+              <button
+                type="button"
+                className="border border-[var(--dark-btn)] text-[var(--dark-btn)] py-2 text-sm rounded-full"
+                onClick={() => setSections({ ...sections, disable: true })}
+              >
+                Discard
+              </button>
+            </div>
           )}
         </form>
       </div>

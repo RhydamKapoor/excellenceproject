@@ -44,6 +44,7 @@ export async function PUT(req) {
 
     return NextResponse.json(updatedUser, {message: `Profile updated successfully`} ,{ status: 200 });
   } catch (error) {
+    console.error("Profile update error:", error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }

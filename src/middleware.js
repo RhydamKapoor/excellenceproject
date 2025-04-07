@@ -4,23 +4,26 @@ import { getToken } from "next-auth/jwt";
 export default async function middleware(req) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const path = req.nextUrl.pathname;
-  console.log("Requested Path:", path);
+  
+  // console.log("Requested Path:", path);
 
   // ✅ Public access for home, login, and signup pages
   if (path === "/" || path === "/login" || path === "/signup") return NextResponse.next();
 
   // ✅ Redirect to login if not authenticated
   if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
   }
 
   // ✅ Redirect logged-in users away from login/signup
   if (path === "/login" || path === "/signup") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
   const role = token.role;
-  if (!role) return NextResponse.redirect(new URL("/login", req.url));
+  // console.log(role);
+  
+  if (!token) return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
 
   // ✅ Define role-based routes
   const roleBasedRoutes = {
@@ -36,7 +39,7 @@ export default async function middleware(req) {
   if (path.startsWith(roleBasedRoutes[role])) return NextResponse.next();
 
   // ❌ Redirect unauthorized users to their correct dashboard
-  return NextResponse.redirect(new URL(roleBasedRoutes[role], req.url));
+  return NextResponse.redirect(new URL(roleBasedRoutes[role], req.nextUrl.origin));
 }
 
 export const config = {

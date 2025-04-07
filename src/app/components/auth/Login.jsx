@@ -10,6 +10,8 @@ import { loginSchema } from "@/schemas/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import ForgotPassword from "./ForgotPassword";
+import { FcGoogle } from "react-icons/fc";
+import { FaSlack } from "react-icons/fa";
 
 export default function Login() {
   const [forgotPassword, setForgotPassword] = useState(false);
@@ -139,9 +141,22 @@ export default function Login() {
             </button>
             <span className="text-[var(--lightText)] text-sm">- or -</span>
 
-            <p className="text-[var(--lightText)] text-md">
+            <div className="flex max-[1160px]:flex-col items-center justify-center w-full *:w-1/2 max-[1160px]:*:w-full text-sm gap-x-5 gap-y-3 *:cursor-pointer">
+              <button type="button" onClick={() => signIn('google', {callbackUrl: '/dashboard'})}
+              className="w-full flex justify-center items-center gap-x-2 text-white py-2.5 px-2 rounded-full border border-gray-700">
+                <FcGoogle className="text-lg" />
+                <span className="text-gray-700 font-semibold">Login with Google</span>
+              </button>
+              <button type="button" onClick={() => signIn('slack', {callbackUrl: '/dashboard'})} className="w-full flex justify-center items-center gap-x-2 text-white py-2.5 px-2 rounded-full border border-gray-700"
+              >
+                <FaSlack className="text-purple-600 text-lg" />
+                <span className="text-gray-700 font-semibold">Login with Slack</span>
+              </button>
+            </div>
+
+            <p className="text-[var(--lightText)] text-sm">
               New user?{" "}
-              <Link href="/signup" className="text-[var(--dark-btn)]">
+              <Link href="/signup" className="text-[var(--dark-btn)] font-semibold">
                 Sign up
               </Link>
             </p>

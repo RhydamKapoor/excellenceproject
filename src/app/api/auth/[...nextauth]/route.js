@@ -17,6 +17,14 @@ export const authOptions = {
     SlackProvider({
       clientId: process.env.SLACK_CLIENT_ID,
       clientSecret: process.env.SLACK_CLIENT_SECRET,
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.real_name,
+          email: profile.email,  // sometimes profile.user.email depending on scopes
+          image: profile.image_512, 
+        };
+      },
     }),
     CredentialsProvider({
       async authorize(credentials) {

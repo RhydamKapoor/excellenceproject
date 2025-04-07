@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useBoolToggle } from "react-haiku";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { loginSchema } from "@/schemas/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FaSlack } from "react-icons/fa";
 
 export default function Login() {
+  const {data: session} = useSession();
   const [forgotPassword, setForgotPassword] = useState(false);
   const [messages, setMessages] = useState({
     errorMsg: '',
@@ -59,6 +60,11 @@ export default function Login() {
       }
     }
   };
+
+  useEffect(() => {
+    console.log(session);
+  }, [session]);
+
   return (
     <>
       {

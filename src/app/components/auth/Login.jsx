@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import { signIn, useSession } from "next-auth/react";
 import { loginSchema } from "@/schemas/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ForgotPassword from "./ForgotPassword";
 import { FcGoogle } from "react-icons/fc";
 import { FaSlack } from "react-icons/fa";

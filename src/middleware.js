@@ -23,7 +23,7 @@ export default async function middleware(req) {
   const role = token.role;
   // console.log(role);
   
-  if (!role) return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+  if (!token) return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
 
   // ✅ Define role-based routes
   const roleBasedRoutes = {

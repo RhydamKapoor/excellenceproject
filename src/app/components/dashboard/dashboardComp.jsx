@@ -57,10 +57,6 @@ export default function DashboardComp() {
     }
   }
   useEffect(() => {
-    if(session){
-      console.log(session);
-      
-    }
     if(session?.user?.role === 'USER'){
         userTaskFetch();
         
@@ -85,7 +81,7 @@ export default function DashboardComp() {
         </div>
         <div className="flex w-2/3 max-[1200px]:w-3/4 flex-col h-full max-md:justify-center max-md:gap-y-20 justify-between items-center sm:p-20 font-[family-name:var(--font-geist-sans)]">
             <div className="flex flex-col items-center">
-                <h1 className="text-3xl font-bold capitalize text-center flex gap-x-2 max-[460px]:flex-col">Welcome, <span className="text-[var(--specialtext)] ">{session?.user?.firstName} {session?.user?.lastName} {session?.user?.name}</span> </h1>
+                <h1 className="text-3xl font-bold capitalize text-center flex gap-x-2 max-[460px]:flex-col">Welcome, <span className="text-[var(--specialtext)] ">{session?.user?.name}</span> </h1>
                 <p>{session?.user?.role === "USER" ? `Have a look at your task for today` : (session?.user?.role === "ADMIN" ? `Wanna change the roles?` : `Assign any task to your users`)}</p>
             </div>
 

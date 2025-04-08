@@ -15,6 +15,7 @@ export default function CreateTask() {
   const { register, handleSubmit, watch, reset, setValue } = useForm({
     defaultValues: {
       feedBack: "",
+      userId: "",
   }});
 
   useEffect(() => {
@@ -52,12 +53,14 @@ export default function CreateTask() {
 
   const createTask = async (data) => {
     const toastId = toast.loading(`Creating tasks...`)
+    
     try {
       await axios.post("/api/manager/create-task", data);
       toast.success("Task created successfully", {id: toastId});
       fetchTasks();
       reset(); // ✅ Reset form fields after submission
     } catch (error) {
+      console.log(error);
       toast.error(error.response?.data?.error || "Error creating task", {id: toastId});
     }
   };
@@ -126,7 +129,7 @@ export default function CreateTask() {
                   Description
                 </label>
               </div>
-              <Select onValueChange={(value) => setValue("userId", value)} defaultValue="">
+              <Select value={watch("userId")}  onValueChange={(value) => setValue("userId", value)} defaultValue="">
                 <SelectTrigger className="w-full rounded-full py-6 px-4 text-md text-[var(--withdarkinnertext)]">
                   <SelectValue placeholder="Select an employee"/>
                 </SelectTrigger>

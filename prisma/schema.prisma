@@ -8,21 +8,21 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
   firstName     String?
   lastName      String?
   name          String?
-  email         String?  @unique
+  email         String?   @unique
   emailVerified DateTime?
   password      String?
   image         String?
-  provider      String?  // OAuth provider (google, slack, etc.)
-  providerId    String?  // Provider account ID
-  role          Role     @default(USER) // Default role is "User"
-  managerId     String?  @unique
-  assignedUsers String[] @default([]) // Stores assigned User IDs if Manager
-  tasks         String[] @default([]) // Stores assigned Task IDs if User
-  createdAt     DateTime @default(now())
+  fcmToken      String?    // store FCM device token here
+  provider      String? // OAuth provider (google, slack, etc.)
+  role          Role      @default(USER) // Default role is "User"
+  managerId     String?   @unique
+  assignedUsers String[]  @default([]) // Stores assigned User IDs if Manager
+  tasks         String[]  @default([]) // Stores assigned Task IDs if User
+  createdAt     DateTime  @default(now())
   accounts      Account[]
   sessions      Session[]
 }
@@ -55,15 +55,15 @@ model Session {
 }
 
 model Task {
-  id            String  @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
   title         String?
   description   String?
   userId        String? // Assigned user ID
   managerId     String? // Assigned by manager ID
-  status        String  @default("Pending") // Task status
+  status        String   @default("Pending") // Task status
   reportMessage String?
   feedBack      String?
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
 }
 
 enum Role {

@@ -32,7 +32,6 @@ export const authOptions = {
         //   await connectDB();
           
           const user = await prisma.user.findUnique({where: { email: credentials.email }});
-
           if (!user) {
             throw new Error("User not found");
           }
@@ -51,6 +50,7 @@ export const authOptions = {
             lastName: user.lastName,
             email: user.email,
             role: user.role,
+            provider: user.provider,
             createdAt: user.createdAt, 
           };
         } catch (error) {
@@ -62,123 +62,59 @@ export const authOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log(`
-        user: ${JSON.stringify(user)}
-        account: ${JSON.stringify(account)}
-        profile: ${JSON.stringify(profile)}
-        `);
-      
-      if (account.provider === "credentials") {
-        return true;
-      }
-      
-      try {
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({
-          where: { email: profile.email },
-        });
-        
-        if (existingUser) {
-          // Update existing user with provider data
-          await prisma.user.update({
-            where: { email: profile.email },
-            data: {
-              providerId: account.providerAccountId,
-              provider: account.provider,
-              // For Google
-              ...(account.provider === "google" && {
-                firstName: profile.given_name || profile.name.split(" ")[0],
-                lastName: profile.family_name || profile.name.split(" ").slice(1).join(" "),
-                image: profile.picture,
-              }),
-              // For Slack
-              ...(account.provider === "slack" && {
-                firstName: profile.name.split(" ")[0],
-                lastName: profile.name.split(" ").slice(1).join(" "),
-                image: profile.image_192 || profile.image_original,
-              }),
-            },
+      console.log("user info:", user);
+      console.log("account info:", account);
+    
+      if (account?.provider === "google" || account?.provider === "slack") {
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email },
           });
-        } else {
-          // Create new user with provider data
-          await prisma.user.create({
-            data: {
-              email: profile.email,
-              provider: account.provider,
-              providerId: account.providerAccountId,
-              // For Google
-              ...(account.provider === "google" && {
-                firstName: profile.given_name || profile.name.split(" ")[0],
-                lastName: profile.family_name || profile.name.split(" ").slice(1).join(" "),
-                image: profile.picture,
-                role: "USER", // Default role
-              }),
-              // For Slack
-              ...(account.provider === "slack" && {
-                firstName: profile.name.split(" ")[0],
-                lastName: profile.name.split(" ").slice(1).join(" "),
-                image: profile.image_192 || profile.image_original,
-                role: "USER", // Default role
-              }),
-            },
-          });
+    
+          if (!existingUser) {
+            console.log("No existing user, creating new one...");
+            await prisma.user.create({
+              data: {
+                email: user.email,
+                firstName: user.name?.split(" ")[0] || "NoName",
+                lastName: user.name?.split(" ")[1] || "NoName",
+                image: user.image || null,
+                provider: account?.provider || "credentials",
+              },
+            });
+          } else {
+            console.log("Existing user found:", existingUser);
+          }
+        } catch (error) {
+          console.error("SignIn Error:", error);
+          return false; // AccessDenied
         }
-        
-        // Also save account info
-        const existingAccount = await prisma.account.findFirst({
-          where: {
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-          },
-        });
-        
-        if (!existingAccount) {
-          await prisma.account.create({
-            data: {
-              userId: existingUser?.id || user.id,
-              type: account.type,
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-              refresh_token: account.refresh_token,
-              access_token: account.access_token,
-              expires_at: account.expires_at,
-              token_type: account.token_type,
-              scope: account.scope,
-              id_token: account.id_token,
-            },
-          });
-        }
-        
-        return true;
-      } catch (error) {
-        console.error("Error saving provider auth data:", error);
-        return true; // Still allow sign in even if DB operations fail
       }
+      return true;
     },
     
-    async jwt({ token, user, trigger, session, account, profile }) {
-      if(trigger === "update"){
-        return {...token, ...session.user}
+    async jwt({ token, user, account, trigger, session })  {
+      if (trigger === "update") {
+        return { ...token, ...session.user };
       }
+    
       if (user) {
-        token.id = user.id;
-        token.firstName = user.firstName;
-        token.lastName = user.lastName;
-        token.role = user.role;
-        token.createdAt = user.createdAt;
-      }
-      if (account) {
-        token.provider = account.provider; // 'google' or 'slack'
-        token.providerId = account.providerAccountId;
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+        });
     
-        if (account.provider === "google") {
-          token.picture = profile?.picture; // Google's profile picture
-        }
-    
-        if (account.provider === "slack") {
-          token.picture = profile?.image_192; // Slack's profile image (size 192px)
+        if (existingUser) {
+          token.id = existingUser.id;
+          token.firstName = existingUser.firstName;
+          token.lastName = existingUser.lastName;
+          token.role = existingUser.role;
+          token.email = existingUser.email;
+          token.createdAt = existingUser.createdAt;
+          token.picture = existingUser.image;
+          token.provider = existingUser.provider;
         }
       }
+      
       return token;
     },
     async session({ session, token }) {
@@ -187,10 +123,10 @@ export const authOptions = {
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
         session.user.role = token.role;
+        session.user.email = token.email;
         session.user.createdAt = token.createdAt;
         session.user.picture = token.picture;
         session.user.provider = token.provider;
-        session.user.providerId = token.providerId;
         
         // Combine firstName and lastName to create a name property
         if (token.firstName && token.lastName) {

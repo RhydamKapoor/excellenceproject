@@ -64,7 +64,7 @@ export default function Contents({setOpen}) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-fit">
                   <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>
-                    Hey, {session?.user?.firstName} {session?.user?.lastName} {session?.user?.name}! 
+                    Hey, {session?.user?.firstName} {session?.user?.lastName}! 
                     <span className="capitalize">({(session?.user?.role)?.toLowerCase()})</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

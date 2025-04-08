@@ -2,6 +2,7 @@
 import Link from "next/link";
 
 export default function Landing({session}) {
+
   return (
     <div className="w-full md:w-1/2 flex flex-col gap-y-10 items-center text-center p-10 max-[900px]:p-4">
       <div className="flex flex-col">

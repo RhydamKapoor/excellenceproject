@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import ForgotPassword from "./ForgotPassword";
 import { FcGoogle } from "react-icons/fc";
 import { FaSlack } from "react-icons/fa";
+import requestForToken from "@/lib/requestForToken";
+
 
 export default function Login() {
   const {data: session} = useSession();
@@ -48,6 +50,7 @@ export default function Login() {
         if (res?.ok) {
           // toast.success("Login successful!", { id: toastId });
           setMessages({successMsg: "Login successfully!"});
+          requestForToken();
           router.push("/dashboard");
         } else {
           // toast.error(res?.error || `Something went wrong!`, { id: toastId });
@@ -55,7 +58,7 @@ export default function Login() {
         }
       } catch (error) {
         // toast.error(res.error || "Auth error", { id: toastId });
-        setMessages({errorMsg: res?.error || "Auth error"})
+        // setMessages({errorMsg: error?.message || "Auth error"})
         console.log(error);
       }
     }

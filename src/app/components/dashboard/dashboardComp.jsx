@@ -57,6 +57,10 @@ export default function DashboardComp() {
     }
   }
   useEffect(() => {
+    if(session){
+      console.log(session);
+      
+    }
     if(session?.user?.role === 'USER'){
         userTaskFetch();
         

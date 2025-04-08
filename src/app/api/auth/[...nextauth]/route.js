@@ -20,22 +20,27 @@ export const authOptions = {
       profile(profile) {
         return {
           id: profile.id,
-          name: profile.real_name,
-          email: profile.email,  // sometimes profile.user.email depending on scopes
-          image: profile.image_512, 
+          name: profile.real_name || profile.name || "Slack User",
+          email: profile.email, // sometimes profile.user.email depending on scopes
+          image: profile.image_512,
         };
       },
     }),
     CredentialsProvider({
       async authorize(credentials) {
         try {
-        //   await connectDB();
-          
-          const user = await prisma.user.findUnique({where: { email: credentials.email }});
+          //   await connectDB();
+
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          });
           if (!user) {
             throw new Error("User not found");
           }
-          const isValid = await bcrypt.compare(credentials.password, user.password);
+          const isValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
 
           if (!isValid) {
             console.log("Invalid credentials");
@@ -51,7 +56,7 @@ export const authOptions = {
             email: user.email,
             role: user.role,
             provider: user.provider,
-            createdAt: user.createdAt, 
+            createdAt: user.createdAt,
           };
         } catch (error) {
           console.error("Error in authorize:", error.message);
@@ -62,22 +67,22 @@ export const authOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log("user info:", user);
-      console.log("account info:", account);
-    
+      console.log("user from Slack:", user);
+      console.log("profile from Slack:", profile);
+
       if (account?.provider === "google" || account?.provider === "slack") {
         try {
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email },
           });
-    
+
           if (!existingUser) {
             console.log("No existing user, creating new one...");
             await prisma.user.create({
               data: {
                 email: user.email,
-                firstName: user.name?.split(" ")[0] || "NoName",
-                lastName: user.name?.split(" ")[1] || "NoName",
+                firstName: user.name ? user.name.split(" ")[0] : "NoName",
+                lastName: user.name ? user.name.split(" ")[1] || "" : "NoName",
                 image: user.image || null,
                 provider: account?.provider || "credentials",
               },
@@ -92,17 +97,17 @@ export const authOptions = {
       }
       return true;
     },
-    
-    async jwt({ token, user, account, trigger, session })  {
+
+    async jwt({ token, user, account, trigger, session }) {
       if (trigger === "update") {
         return { ...token, ...session.user };
       }
-    
+
       if (user) {
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
         });
-    
+
         if (existingUser) {
           token.id = existingUser.id;
           token.firstName = existingUser.firstName;
@@ -114,7 +119,7 @@ export const authOptions = {
           token.provider = existingUser.provider;
         }
       }
-      
+
       return token;
     },
     async session({ session, token }) {
@@ -127,7 +132,7 @@ export const authOptions = {
         session.user.createdAt = token.createdAt;
         session.user.picture = token.picture;
         session.user.provider = token.provider;
-        
+
         // Combine firstName and lastName to create a name property
         if (token.firstName && token.lastName) {
           session.user.name = `${token.firstName} ${token.lastName}`;

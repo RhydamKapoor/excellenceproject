@@ -16,6 +16,10 @@ if (!admin.apps.length) {
 // This is your actual function to send notifications
 export async function sendNotification(token, title, body) {
   try {
+    if (!token) {
+      throw new Error('FCM token is required');
+    }
+
     const message = {
       token: token,
       notification: {

@@ -22,13 +22,22 @@ const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage(function(payload) {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  // console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  const notificationTitle = payload.data?.title || 'Background Notification';
-  const notificationOptions = {
-    body: payload.data?.body || 'No body available',
-    icon: '/notification.png'
-  };
+  const { title, body, icon } = payload.notification;  // reading from payload.da
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  if(title && body){
+    console.log('title and body are available',
+      `${title}`,
+      `${body}`
+    );
+    
+    const notificationTitle = title || 'Background Notification';
+    const notificationOptions = {
+      body: body || 'body available',
+      icon: icon || '/notification.png'
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  }
 });

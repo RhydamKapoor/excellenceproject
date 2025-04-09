@@ -33,7 +33,7 @@ export async function POST(req) {
       const response = await sendNotification(
         user.fcmToken,
         "New Task Assigned",
-        `You have a new task: ${title}`
+        title
       );
       console.log(response);
       } catch (error) {

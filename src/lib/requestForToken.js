@@ -24,6 +24,8 @@ const requestForToken = async () => {
           const response = await axios.post('/api/firebase/save-token', {
             fcmToken: currentToken,
           });
+          console.log(response);
+          console.log(`Token saved successfully: ${currentToken}`);
           if(response.status === 200){
             console.log('Token saved successfully');
           }else{

@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# TaskSensei - AI-Powered Task Management Assistant
 
-## Getting Started
+TaskSensei is an AI-powered assistant that helps users manage their tasks more effectively. It provides personalized advice on task prioritization, time management, and productivity strategies.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **AI-Powered Task Advice**: Get personalized recommendations for task management
+- **Interactive Chat Interface**: Simple and intuitive chat interface
+- **Task-Specific Guidance**: Receive advice tailored to your specific task challenges
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup Instructions
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Prerequisites
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Node.js (v18 or higher)
+- npm or yarn
+- OpenAI API key
 
-## Learn More
+### Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+   or
+   ```
+   yarn install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory with the following variables:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Run the development server:
+   ```
+   npm run dev
+   ```
+   or
+   ```
+   yarn dev
+   ```
 
-## Deploy on Vercel
+## Usage
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Navigate to the TaskSensei page in the dashboard
+2. Type your task-related question in the input field
+3. Press Enter or click the Send button
+4. Receive AI-generated advice and recommendations
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Example Questions
+
+- "How can I prioritize my tasks effectively?"
+- "What's the best way to break down a large project?"
+- "How do I manage my time better?"
+- "I'm feeling overwhelmed with my workload, what should I do?"
+- "How can I improve my productivity?"
+
+## Technologies Used
+
+- Next.js
+- React
+- OpenAI API
+- Tailwind CSS
+- Axios
+
+## License
+
+This project is licensed under the MIT License.

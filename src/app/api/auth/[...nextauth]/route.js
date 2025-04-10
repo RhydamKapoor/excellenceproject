@@ -8,6 +8,7 @@ import SlackProvider from "next-auth/providers/slack";
 export const authOptions = {
   session: {
     strategy: "jwt",
+    maxAge: 60*60*24
   },
   providers: [
     GoogleProvider({

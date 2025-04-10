@@ -25,7 +25,6 @@ const requestForToken = async () => {
             fcmToken: currentToken,
           });
           console.log(response);
-          console.log(`Token saved successfully: ${currentToken}`);
           if(response.status === 200){
             console.log('Token saved successfully');
           }else{

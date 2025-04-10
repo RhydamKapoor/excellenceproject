@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FolderKanban, ListOrdered, ListTodo, Repeat2Icon, UserRound } from "lucide-react";
+import { BrainCircuit, FolderKanban, ListOrdered, ListTodo, Repeat2Icon, UserRound } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 
@@ -19,7 +19,6 @@ export default function Contents({setOpen}) {
           role: "USER",
           links: [
             { icon: <ListTodo size={22}/>, label: "Tasks", href: "/dashboard/user/task" },
-            // { label: "Profile", href: "/dashboard/user/profile" }
           ],
         },
         {
@@ -33,8 +32,6 @@ export default function Contents({setOpen}) {
           role: "MANAGER",
           links: [
             { icon: <ListOrdered size={22}/>, label: "Assign task", href: "/dashboard/manager/assigntask" },
-            // { label: "Team Overview", href: "/dashboard/manager/team" },
-            // { label: "Team Overview", href: "/dashboard/manager/team" }
           ],
         },
     ];

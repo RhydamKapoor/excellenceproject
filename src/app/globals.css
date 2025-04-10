@@ -143,10 +143,14 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb{
+  box-sizing: content-box;
   border: 2px solid transparent;
   border-radius: 20px;
-  box-sizing: content-box;
   background-color: var(--secondary-color)
+}
+.sensei_scroll::-webkit-scrollbar-thumb{
+  background-color: var(--dark-btn);
+  border-radius: 0;
 }
 
 .loader {

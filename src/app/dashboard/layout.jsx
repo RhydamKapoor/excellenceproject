@@ -1,5 +1,6 @@
-import Navbar from "../components/Navbar/Navbar";
 
+import Navbar from "../components/Navbar/Navbar";
+import SenseiModal from "../components/Sensei/SenseiModal";
 
 export default function DashboardLayout({ children }) {
   return (
@@ -7,6 +8,7 @@ export default function DashboardLayout({ children }) {
       <Navbar />
       <div className="relative h-[calc(100vh-80px)]">
         {children}
+        <SenseiModal />
       </div>
     </div>
   );

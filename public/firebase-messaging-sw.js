@@ -13,8 +13,15 @@ const firebaseConfig = {
     appId: "1:389142027112:web:a784884db1dd99d28b14dd",
     measurementId: "G-6WBPB1KKQ5"
   };
-
-// Initialize Firebase app
+// const firebaseConfig = {
+//   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+//   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+//   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+//   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+//   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+//   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+//   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+// }
 firebase.initializeApp(firebaseConfig);
 
 // Initialize Firebase Messaging

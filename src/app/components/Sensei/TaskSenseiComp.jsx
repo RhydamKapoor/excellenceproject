@@ -312,7 +312,7 @@ export default function TaskSenseiComp({isAnimate}) {
               }`}
             >
               <div
-                className={`max-w-[80%] p-3 rounded-lg ${
+                className={`max-w-[80%] max-[450px]:text-sm p-3 rounded-lg ${
                   message.role === "user"
                     ? "bg-[var(--dark-btn)] text-white"
                     : "bg-gray-100 text-gray-800"
@@ -416,7 +416,7 @@ export default function TaskSenseiComp({isAnimate}) {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Ask TaskSensei for help..."
-                className="flex-1 py-2 pl-12 pr-12 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--dark-btn)] max-sm:text-sm text-slate-800"
+                className="flex-1 py-2 pl-12 pr-12 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--dark-btn)] max-sm:text-sm text-slate-600"
                 disabled={isLoading}
             />
             {

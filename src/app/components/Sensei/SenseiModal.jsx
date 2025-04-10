@@ -27,7 +27,7 @@ export default function SenseiModal() {
         <AnimatePresence>
             {openBot ? (
                 <motion.div
-                    className="absolute bottom-5 right-5 rounded-lg bg-white border border-[var(--dark-btn)] flex items-center justify-center overflow-hidden group gap-x-3"
+                    className="absolute bottom-5 right-5 rounded-lg bg-white border border-[var(--dark-btn)] flex items-center justify-center overflow-hidden group gap-x-3 max-[450px]:!w-[90vw]"
                     initial={{ width: 48, height: 48 }}
                     animate={{ width: 400, height: 400 }}
                     exit={{ width: 48, height: 48 }}

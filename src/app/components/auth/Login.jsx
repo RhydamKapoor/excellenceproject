@@ -10,7 +10,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import ForgotPassword from "./ForgotPassword";
 import { FcGoogle } from "react-icons/fc";
 import { FaSlack } from "react-icons/fa";
-import requestForToken from "@/lib/requestForToken";
 import { useState } from "react";
 
 
@@ -48,7 +47,6 @@ export default function Login() {
         if (res?.ok) {
           // toast.success("Login successful!", { id: toastId });
           setMessages({successMsg: "Login successfully!"});
-          requestForToken();
           router.push("/dashboard");
         } else {
           // toast.error(res?.error || `Something went wrong!`, { id: toastId });

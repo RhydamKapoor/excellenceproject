@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
-import { PDFDocument } from "pdf-lib";
+import { createWorker } from "tesseract.js";
+import { PDFDocument } from 'pdf-lib'
 
 export default function TaskSenseiComp({isAnimate}) {
   const [prompt, setPrompt] = useState("");
@@ -12,6 +13,9 @@ export default function TaskSenseiComp({isAnimate}) {
   const [isTyping, setIsTyping] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [prevName, setPrevName] = useState([]);
+  const [extractedText, setExtractedText] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef(null);
@@ -51,17 +55,13 @@ export default function TaskSenseiComp({isAnimate}) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!prompt.trim() && !selectedFile) return;
+    if (!prompt.trim() && !extractedText) return;
     
     // Add user message to chat
     const userMessage = { 
       role: "user", 
       content: prompt,
-      file: selectedFile ? {
-        name: selectedFile.name,
-        type: selectedFile.type,
-        size: selectedFile.size
-      } : null
+      file: extractedText ? extractedText : null
     };
     setMessages((prev) => [...prev, userMessage]);
     setPrompt("");
@@ -71,19 +71,22 @@ export default function TaskSenseiComp({isAnimate}) {
     try {
       // Create FormData to send both text and file
       const formData = new FormData();
+      if (extractedText) {
+        formData.append("extractedText", extractedText);
+      }
       formData.append("prompt", prompt);
       
-      if (selectedFile) {
-        // If it's a PDF that was converted to an image
-        if (selectedFile.dataUrl) {
-          // Convert data URL to blob
-          const response = await fetch(selectedFile.dataUrl);
-          const blob = await response.blob();
-          formData.append("file", blob, selectedFile.name);
-        } else {
-          formData.append("file", selectedFile);
-        }
-      }
+      // if (selectedFile) {
+      //   // If it's a PDF that was converted to an image
+      //   if (selectedFile.dataUrl) {
+      //     // Convert data URL to blob
+      //     const response = await fetch(selectedFile.dataUrl);
+      //     const blob = await response.blob();
+      //     formData.append("file", blob, selectedFile.name);
+      //   } else {
+      //     formData.append("file", selectedFile);
+      //   }
+      // }
       
       // Add a placeholder AI message that will be updated with streaming content
       const aiMessageId = Date.now();
@@ -103,11 +106,15 @@ export default function TaskSenseiComp({isAnimate}) {
         body: formData,
         signal: abortControllerRef.current.signal
       });
+      console.log(response);
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        console.log(`API error: ${response.status}`);
+        return;
       }
       
+      
+      setFilePreview(null);
       // Get the reader from the response body stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -129,7 +136,7 @@ export default function TaskSenseiComp({isAnimate}) {
         setMessages((prev) => 
           prev.map(msg => 
             msg.id === aiMessageId 
-              ? { ...msg, content: accumulatedContent } 
+              ? { ...msg, content: { response: accumulatedContent } } 
               : msg
           )
         );
@@ -145,7 +152,10 @@ export default function TaskSenseiComp({isAnimate}) {
       );
       
       // Clear file after successful submission
+      
       setSelectedFile(null);
+      setExtractedText("");
+      setSelectedImage(null);
       setFilePreview(null);
     } catch (error) {
       // Check if the error is due to aborting the request
@@ -165,11 +175,17 @@ export default function TaskSenseiComp({isAnimate}) {
       abortControllerRef.current = null;
     }
   };
+  
 
   // Function to handle file selection
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
+    setPrevName([...prevName, file.name]);
+    
     if (!file) return;
+    
+    setSelectedFile(file);
+    
     
     // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain', 'text/csv', 'text/markdown'];
@@ -184,28 +200,37 @@ export default function TaskSenseiComp({isAnimate}) {
       return;
     }
     
-    setSelectedFile(file);
-    
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    } else if (file.type === 'application/pdf') {
-      // For PDFs, show a PDF icon
-      setFilePreview('pdf');
-    } else if (file.type.startsWith('text/')) {
-      // For text files, show a text icon
+    if (file.type === "text/plain") {
+      setExtractedText( await file.text());
       setFilePreview('text');
+      return;
+    }    
+    setFilePreview('image');
+    setIsLoading(true);
+    
+    try {
+      const worker = await createWorker();
+
+      const {
+        data: { text },
+      } = await worker.recognize(file);
+      setExtractedText(text);
+
+      await worker.terminate();
+    } catch (error) {
+      console.error("OCR Error:", error);
+      alert("Error extracting text from image. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Function to remove selected file
   const removeFile = () => {
     setSelectedFile(null);
+    setExtractedText("");
     setFilePreview(null);
+    setPrevName(prevName.slice(0, -1));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -231,10 +256,13 @@ export default function TaskSenseiComp({isAnimate}) {
 
   // Function to format message content with code blocks
   const formatMessage = (content) => {
-    // Split the content by code blocks (```code```)
-    const parts = content.split(/(```[\s\S]*?```)/g);
+    // If content is an object (API response), extract the response text
     
-    return parts.map((part, index) => {
+    
+    // Split the content by code blocks (```code```)
+    const parts = content?.split(/(```[\s\S]*?```)/g);
+    
+    return parts?.map((part, index) => {
       // Check if this part is a code block
       if (part.startsWith('```') && part.endsWith('```')) {
         // Extract the language and code
@@ -265,6 +293,7 @@ export default function TaskSenseiComp({isAnimate}) {
       // Regular text
       return <p key={index} className="whitespace-pre-wrap">{part}</p>;
     });
+    // return <p className="whitespace-pre-wrap">{content}</p>;
   };
 
   useEffect(() => {
@@ -324,13 +353,13 @@ export default function TaskSenseiComp({isAnimate}) {
                     {message.file && (
                       <div className="mt-2 p-2 bg-white text-slate-800 bg-opacity-20 rounded flex items-center">
                         <Paperclip size={16} className="mr-2" />
-                        <span className="text-sm truncate">{message.file.name}</span>
+                        <span className="text-sm truncate">{prevName[index/2]}</span>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
-                    {formatMessage(message.content)}
+                    {formatMessage(message.content.response)}
                     {message.isStreaming && (
                       <span className="inline-block w-1 h-4 ml-1 animate-pulse bg-gray-700"></span>
                     )}
@@ -346,26 +375,27 @@ export default function TaskSenseiComp({isAnimate}) {
       {/* File Preview */}
       {filePreview && (
         <div className="relative mt-2 p-1 border rounded-md bg-gray-50 flex items-center">
-          {filePreview === 'pdf' ? (
+          {filePreview === 'pdf' && (
             <div className="flex items-center p-2">
               <div className="text-center flex items-center gap-x-2">
                 <Folder size={20} color="red"/>
                 <p className="text-sm text-gray-600">{selectedFile.name}</p>
               </div>
             </div>
-          ) : filePreview === 'text' ? (
+          ) }
+          {selectedFile.type === 'text/plain' && (
             <div className="flex items-center p-2">
               <div className="text-center flex items-center gap-x-2">
                 <FileText size={20} color="blue"/>
                 <p className="text-sm text-gray-600">{selectedFile.name}</p>
               </div>
             </div>
-          ) : (
+          )} {filePreview === 'image' && (
               <div className="text-center flex items-center gap-x-2">
             <img
-              src={filePreview}
+              src={URL.createObjectURL(selectedFile)}
               alt="Preview"
-              className="max-h-12"
+              className="h-12"
             />
                 <p className="text-sm text-gray-600">{selectedFile.name}</p>
               </div>

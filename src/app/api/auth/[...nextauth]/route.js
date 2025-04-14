@@ -18,14 +18,6 @@ export const authOptions = {
     SlackProvider({
       clientId: process.env.SLACK_CLIENT_ID,
       clientSecret: process.env.SLACK_CLIENT_SECRET,
-      // profile(profile) {
-      //   return {
-      //     id: profile.id,
-      //     name: profile.real_name || profile.name || "Slack User",
-      //     email: profile.email, // sometimes profile.user.email depending on scopes
-      //     image: profile.image_512,
-      //   };
-      // },
     }),
     CredentialsProvider({
       async authorize(credentials) {
@@ -48,8 +40,6 @@ export const authOptions = {
             throw new Error("Invalid credentials");
           }
 
-          console.log("Authentication successful!");
-
           return {
             id: user.id,
             firstName: user.firstName,
@@ -68,8 +58,6 @@ export const authOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log("user from Slack:", user);
-      console.log("profile from Slack:", profile);
 
       if (account?.provider === "google" || account?.provider === "slack") {
         try {

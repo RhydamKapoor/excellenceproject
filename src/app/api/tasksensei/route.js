@@ -1,16 +1,15 @@
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { PDFDocument } from "pdf-lib";
-import { OpenAIEmbeddings } from '@langchain/openai'
-import { Pinecone } from '@pinecone-database/pinecone'
-import { Document } from 'langchain/document'
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { Pinecone } from "@pinecone-database/pinecone";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
-
+import bm25 from "wink-bm25-text-search";
+import nlp from "wink-nlp-utils";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const pinecone = new Pinecone()
+const pinecone = new Pinecone();
 // Helper function to simulate thinking time
 
 export async function POST(req) {
@@ -25,7 +24,6 @@ export async function POST(req) {
       ? formData.get("prompt")
       : `Read the text or file`;
     const extractedText = formData.get("extractedText");
-    const files = formData.getAll("file");
 
     let allText = "";
     let hasProcessingError = false;
@@ -41,51 +39,6 @@ export async function POST(req) {
         allText = extractedText;
       }
 
-      // Process files if any
-      if (files.length > 0) {
-        for (const file of files) {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          let fileText = "";
-
-          try {
-            if (file.type === "application/pdf") {
-              console.log("Processing PDF file:", file.name);
-              fileText = await extractTextFromPDF(buffer);
-            } else if (file.type.startsWith("text/")) {
-              console.log("Processing text file:", file.name);
-              fileText = await extractTextFromTextFile(buffer);
-            } else if (file.type.startsWith("image/")) {
-              console.log(
-                "Skipping image file as we already have extracted text"
-              );
-              continue;
-            } else {
-              console.log("Unsupported file type:", file.type);
-              processingErrors.push({
-                fileName: file.name,
-                error: "Unsupported file type",
-              });
-              continue;
-            }
-
-            if (fileText.trim()) {
-              allText += "\n\n" + fileText;
-              console.log(`Successfully processed ${file.name}`);
-            } else {
-              processingErrors.push({
-                fileName: file.name,
-                error: "No text could be extracted",
-              });
-            }
-          } catch (error) {
-            console.error(`Error processing ${file.name}:`, error);
-            processingErrors.push({
-              fileName: file.name,
-              error: error.message,
-            });
-          }
-        }
-      }
     }
 
     console.log("Text length:", allText.length);
@@ -108,7 +61,14 @@ export async function POST(req) {
       chunkSize: 1000,
       chunkOverlap: 200,
     });
-    const chunks = await textSplitter.splitText(allText);
+    
+    // Ensure we have enough text to process
+    let textToProcess = allText;
+    if (textToProcess.length < 100) {  // If text is too short
+      textToProcess = textToProcess + "\n\n" + textToProcess;  // Duplicate the text to ensure we have enough content
+    }
+    
+    const chunks = await textSplitter.splitText(textToProcess);
     console.log("Chunks created:", chunks.length);
 
     console.log("Initializing embeddings");
@@ -122,9 +82,10 @@ export async function POST(req) {
 
     // Generate a unique ID for this session
     const sessionId = `session-${Date.now()}`;
-    console.log("Using session ID:", sessionId);
+    const userId = session.user.id;  // Get the user ID from the session
 
     console.log("Creating vectors");
+    const textStore = [];
     const vectors = [];
     for (let i = 0; i < chunks.length; i++) {
       console.log(`Processing chunk ${i + 1}/${chunks.length}`);
@@ -136,15 +97,15 @@ export async function POST(req) {
         values: embedding,
         metadata: {
           text: chunk,
+          type: "user-query",
           timestamp: new Date().toISOString(),
-          source: extractedText
-            ? "image"
-            : files.length > 0
-            ? "file"
-            : "prompt",
+          source: extractedText ? "file/image" : "prompt",
           sessionId: sessionId,
+          userId: userId,  // Store the user ID
         },
       });
+
+      textStore.push({ id: `${sessionId}-chunk-${i}`, text: chunk });
     }
     console.log("Vectors created:", vectors.length);
 
@@ -156,35 +117,77 @@ export async function POST(req) {
     const queryEmbedding = await embeddings.embedQuery(prompt);
     const queryResponse = await index.query({
       vector: queryEmbedding,
-      topK: 5,
+      topK: 10,
       includeMetadata: true,
       includeValues: true,
       filter: {
-        sessionId: sessionId,
+        userId: userId,  // Only match the current user's data
+        $or: [
+          { sessionId: sessionId },  // Current session
+          { type: "user-query" }     // Historical queries
+        ]
       },
     });
-    console.log("Query results:", queryResponse.matches);
 
-    const relevantContext =
-      queryResponse.matches && queryResponse.matches.length > 0
-        ? queryResponse.matches
-            .filter((match) => match.score >= 0.7)
-            .map((match) => match.metadata.text)
-            .join("\n\n")
-        : null;
+    const engine = bm25();
+    engine.defineConfig({ fldWeights: { text: 1 } });
+    engine.definePrepTasks([
+      nlp.string.lowerCase,
+      nlp.string.tokenize0,
+      nlp.tokens.removeWords,
+      nlp.tokens.stem,
+    ]);
 
-    console.log(
-      "Relevant context:",
-      relevantContext ? "Present" : "Not present"
-    );
-    if (relevantContext) {
-      console.log("Context length:", relevantContext.length);
+    // Index all your chunk texts (from textStore)
+    let bm25Results = [];
+    if (textStore.length >= 2) {
+      textStore.forEach((doc) => {
+        engine.addDoc({ text: doc.text }, doc.id);
+      });
+      engine.consolidate();
+      bm25Results = engine.search(prompt);
+    } else {
+      bm25Results = queryResponse.matches.map(match => ({
+        id: match.id,
+        score: 0.8
+      }));
     }
 
-    // Format the prompt for OpenAI
+    // Create a map of BM25 scores
+    const bm25ScoreMap = new Map();
+    bm25Results.forEach((r) => {
+      bm25ScoreMap.set(r.id, r.score);
+    });
+
+    // Now rerank Pinecone results by combining vector score + BM25
+    const rerankedMatches = queryResponse.matches
+      .map((match) => {
+        const bm25Score = bm25ScoreMap.get(match.id) || 0;
+        return {
+          ...match,
+          rerankScore: match.score * 0.7 + bm25Score * 0.3,
+        };
+      })
+      .sort((a, b) => b.rerankScore - a.rerankScore);
+
+    console.log("Query results:", rerankedMatches);
+    const relevantContext = rerankedMatches && rerankedMatches.length > 0
+      ? rerankedMatches
+          .filter((match) => match.rerankScore >= 0.8) 
+          .map((match) =>
+            match.metadata.text.length > 20
+              ? match.metadata.text
+              : "[Skipped short text]"
+          )
+          .join("\n\n")
+      : null;
+
+    // Format the prompt for OpenAI with better context handling
     const formattedPrompt = relevantContext
-      ? `Here is the content to analyze:\n\n${relevantContext}\n\nPlease analyze this content and provide insights about tasks, deadlines, and organization strategies.`
-      : `Please analyze the following content and provide insights about tasks, deadlines, and organization strategies:\n\n${allText}`;
+      ? `Here is the content to analyze:\n\n${relevantContext}\n\nUser Query: ${prompt}\n\nPlease analyze this content and provide specific information about the writer, tasks, deadlines, and organization strategies. If the user is asking about specific details like the writer's name, please extract and provide that information directly.
+      If you get any relevant context from the user query, you should write it separately in the context section after contextualised, like {relevant context: ${relevantContext}}.
+      If user tells do's and don't's, you should coperate with it.`
+      : `Please analyze the following content and provide insights about tasks, deadlines, and organization strategies:\n\n${allText}\n\nUser Query: ${prompt}`;
 
     console.log("Generating response with OpenAI");
     console.log("Prompt length:", formattedPrompt.length);
@@ -194,9 +197,14 @@ export async function POST(req) {
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
 
+    // Create an AbortController for the streaming
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     // Start the OpenAI streaming response in the background
     (async () => {
       try {
+        const history = [{ role: "user", content: prompt }];
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
@@ -204,6 +212,8 @@ export async function POST(req) {
               role: "system",
               content: `You are TaskSensei, a world-class expert in task management, productivity, and organization strategies. 
               Your goal is to carefully analyze the provided input and deliver clear, actionable insights.
+              You give queries answer to the user in a friendly and engaging manner. If user ask about the context of the query, you give the context of the query.
+              You search in the pinecone to see the score of the chunk related to the user query, and give relevant context to the user query. You create contextual answer to the user query.
 
               Focus on:
               - Identifying key tasks, action items, and deadlines.
@@ -237,17 +247,18 @@ export async function POST(req) {
               Always ensure your tone is professional, encouraging, and solution-oriented. 
               If the input is unclear or missing details, politely suggest how to improve task clarity.
               
-              End your responses with a clear call to action or next steps to help users move forward.`
+              End your responses with a clear call to action or next steps to help users move forward.`,
             },
+            ...history,
             {
               role: "user",
               content: formattedPrompt,
-            }
+            },
           ],
           temperature: 0.2,
           max_tokens: 1000,
-          stream: true
-        });
+          stream: true,
+        }, { signal });  // Pass the signal to the OpenAI call
 
         // Process the stream
         for await (const chunk of completion) {
@@ -259,8 +270,13 @@ export async function POST(req) {
 
         await writer.close();
       } catch (error) {
-        console.error("Streaming error:", error);
-        await writer.abort(error);
+        if (error.name === 'AbortError') {
+          console.log('Streaming was aborted');
+          await writer.write(encoder.encode('\n\n[Response stopped by user]'));
+        } else {
+          console.error("Streaming error:", error);
+          await writer.abort(error);
+        }
       }
     })();
 
@@ -269,15 +285,17 @@ export async function POST(req) {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
       },
     });
-
   } catch (error) {
     console.error("Processing error:", error);
-    return NextResponse.json({ 
-      message: 'Processing failed',
-      error: error.message 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: "Processing failed",
+        error: error.message,
+      },
+      { status: 500 }
+    );
   }
 }

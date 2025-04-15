@@ -4,7 +4,7 @@ import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square } from "lucid
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import { createWorker } from "tesseract.js";
-import { PDFDocument } from 'pdf-lib'
+import pdfToText from "react-pdftotext";
 
 export default function TaskSenseiComp({isAnimate}) {
   const [prompt, setPrompt] = useState("");
@@ -75,18 +75,10 @@ export default function TaskSenseiComp({isAnimate}) {
         formData.append("extractedText", extractedText);
       }
       formData.append("prompt", prompt);
-      
-      // if (selectedFile) {
-      //   // If it's a PDF that was converted to an image
-      //   if (selectedFile.dataUrl) {
-      //     // Convert data URL to blob
-      //     const response = await fetch(selectedFile.dataUrl);
-      //     const blob = await response.blob();
-      //     formData.append("file", blob, selectedFile.name);
-      //   } else {
-      //     formData.append("file", selectedFile);
-      //   }
-      // }
+
+      if(!extractedText){
+        selectedFile !== "undefined" &&setPrevName([...prevName, ""]);
+      }
       
       // Add a placeholder AI message that will be updated with streaming content
       const aiMessageId = Date.now();
@@ -106,7 +98,6 @@ export default function TaskSenseiComp({isAnimate}) {
         body: formData,
         signal: abortControllerRef.current.signal
       });
-      console.log(response);
       
       if (!response.ok) {
         console.log(`API error: ${response.status}`);
@@ -179,13 +170,14 @@ export default function TaskSenseiComp({isAnimate}) {
 
   // Function to handle file selection
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    setPrevName([...prevName, file.name]);
+    const file = e?.target?.files[0];
+    console.log(file);
+    
+    file && file !== "undefined" && setPrevName([...prevName, file?.name]);
     
     if (!file) return;
     
     setSelectedFile(file);
-    
     
     // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'application/pdf', 'text/plain', 'text/csv', 'text/markdown'];
@@ -201,10 +193,30 @@ export default function TaskSenseiComp({isAnimate}) {
     }
     
     if (file.type === "text/plain") {
-      setExtractedText( await file.text());
+      setExtractedText(await file.text());
       setFilePreview('text');
       return;
-    }    
+    }
+
+    if (file.type === "application/pdf") {
+      setFilePreview('pdf');
+      setIsLoading(true);
+      
+      try {
+        // Read the file as ArrayBuffer
+        const text = await pdfToText(file);
+        
+        setExtractedText(text);
+      } catch (error) {
+        console.error("PDF Extraction Error:", error);
+        toast.error("Error extracting text from PDF. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Handle image files
     setFilePreview('image');
     setIsLoading(true);
     
@@ -219,7 +231,7 @@ export default function TaskSenseiComp({isAnimate}) {
       await worker.terminate();
     } catch (error) {
       console.error("OCR Error:", error);
-      alert("Error extracting text from image. Please try again.");
+      toast.error("Error extracting text from image. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -409,18 +421,6 @@ export default function TaskSenseiComp({isAnimate}) {
         </div>
       )}
       
-      {/* Stop button - only visible when a response is being generated */}
-      {/* {(
-        <div className="flex justify-center p-2">
-          <button
-            onClick={stopGeneration}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Square size={16} />
-            <span>Stop Generation</span>
-          </button>
-        </div>
-      )} */}
       
       {/* Input form */}
       <form onSubmit={handleSubmit} className="p-4 border-t">

@@ -7,7 +7,7 @@ import bm25 from "wink-bm25-text-search";
 import nlp from "wink-nlp-utils";
 import { Worker } from "worker_threads";
 import path from "path";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "../../auth/[...nextauth]/route";
 
 export const runtime = "nodejs";
 

@@ -65,7 +65,7 @@ export async function POST(req) {
     // Use either the uploaded file name or the one from prompt
     const targetFileName = fileName || promptFileName;
     console.log("Target file name for search:", targetFileName);
-    
+
 
     // If not vector search, use GPT-4 directly
     if (isVectorSearch === "false") {
@@ -132,7 +132,7 @@ export async function POST(req) {
               console.log('Request was aborted by client');
               break;
             }
-            
+
             const content = chunk.choices[0]?.delta?.content || "";
             if (content) {
               await writer.write(new TextEncoder().encode(content));
@@ -223,8 +223,7 @@ export async function POST(req) {
               if (result.error.includes("rate limit")) {
                 const waitTime = 30000; // Wait 30 seconds before retrying
                 console.log(
-                  `Worker ${i} hit rate limit. Waiting ${
-                    waitTime / 1000
+                  `Worker ${i} hit rate limit. Waiting ${waitTime / 1000
                   } seconds before retrying...`
                 );
                 setTimeout(() => {
@@ -273,8 +272,7 @@ export async function POST(req) {
 
             vectors.push(result);
             console.log(
-              `Worker ${i} processed chunk ${vectors.length} of ${
-                chunks.length + vectors.length
+              `Worker ${i} processed chunk ${vectors.length} of ${chunks.length + vectors.length
               }`
             );
 
@@ -372,8 +370,7 @@ export async function POST(req) {
               () =>
                 reject(
                   new Error(
-                    `Overall processing timeout after ${
-                      OVERALL_TIMEOUT / 1000
+                    `Overall processing timeout after ${OVERALL_TIMEOUT / 1000
                     } seconds`
                   )
                 ),
@@ -611,13 +608,13 @@ export async function POST(req) {
 
     // Get BM25 results
     let bm25Results = [];
-    
+
     if (bm25Docs.length > 1) {  // Only use BM25 if we have more than 1 document
       try {
         console.log(`Processing BM25 with ${bm25Docs.length} valid documents`);
         engine.consolidate();
         const results = engine.search(prompt);
-       
+
         // If no results from BM25, use Pinecone results directly
         if (!results || results.length === 0) {
           console.log("No BM25 results, falling back to Pinecone results");
@@ -695,8 +692,8 @@ export async function POST(req) {
 
       Contexts:
       ${bm25Results
-        .map((ctx, i) => `Context [${i + 1}]: ${ctx.context || ctx.text}`)
-        .join("\n\n")}
+          .map((ctx, i) => `Context [${i + 1}]: ${ctx.context || ctx.text}`)
+          .join("\n\n")}
 
       ---
 
@@ -741,8 +738,8 @@ export async function POST(req) {
         );
       }
 
-      
-      const finalResult = selectedResult.index !== 0 ? bm25Results[selectedResult.index - 1] : {text:`No relevant information found.`, context:`No relevant information found or maybe missing`, reason: "No relevant information found."};
+
+      const finalResult = selectedResult.index !== 0 ? bm25Results[selectedResult.index - 1] : { text: `No relevant information found.`, context: `No relevant information found or maybe missing`, reason: "No relevant information found." };
 
       // Create a streaming response
       const stream = new TransformStream();
@@ -765,9 +762,8 @@ export async function POST(req) {
               },
               {
                 role: "user",
-                content: `Context:\n${
-                  finalResult.context || finalResult.text
-                }\n\nQuestion: ${prompt}\n\n read the prompt carefully, Please provide a direct answer using ONLY the information from the context above if available and explain it. If no relevant information is found, explain why and by your own knowledge say something related to the query in shorter way.
+                content: `Context:\n${finalResult.context || finalResult.text
+                  }\n\nQuestion: ${prompt}\n\n read the prompt carefully, Please provide a direct answer using ONLY the information from the context above if available and explain it. If no relevant information is found, explain why and by your own knowledge say something related to the query in shorter way.
                 Give answers in a concise manner, don't be too verbose.`,
               },
             ],
@@ -782,7 +778,7 @@ export async function POST(req) {
               console.log('Request was aborted by client');
               break;
             }
-            
+
             const content = chunk.choices[0]?.delta?.content || "";
             if (content) {
               await writer.write(new TextEncoder().encode(content));

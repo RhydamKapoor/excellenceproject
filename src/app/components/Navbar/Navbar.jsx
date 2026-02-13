@@ -16,7 +16,7 @@ export default function Navbar() {
         <div className="flex capitalize">
           <Link href={`/dashboard`}>
             <h1 className="text-xl font-semibold text-[var(--specialtext)]">
-              Excellence technosoft
+              Taskflow
             </h1>
           </Link>
         </div>

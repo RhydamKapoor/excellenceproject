@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square } from "lucide-react";
+import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square, Search, Database } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import { createWorker } from "tesseract.js";
@@ -8,9 +8,11 @@ import pdfToText from "react-pdftotext";
 
 export default function TaskSenseiComp({isAnimate}) {
   const [prompt, setPrompt] = useState("");
+  const [isVectorSearch, setIsVectorSearch] = useState(false);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [prevName, setPrevName] = useState([]);
@@ -35,25 +37,38 @@ export default function TaskSenseiComp({isAnimate}) {
   // Function to stop the AI response generation
   const stopGeneration = () => {
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      
-      // Update the last message to indicate it was stopped
-      setMessages((prev) => 
-        prev.map((msg, index) => 
-          index === prev.length - 1 && msg.role === "assistant" && msg.isStreaming
-            ? { ...msg, isStreaming: false, content: msg.content + "\n\n[Response stopped by user]" }
-            : msg
-        )
-      );
-      
-      setIsLoading(false);
-      setIsTyping(false);
+      try {
+        abortControllerRef.current.abort();
+        console.log('Request aborted successfully');
+        
+        // Update the last message to indicate it was stopped
+        setMessages((prev) => 
+          prev.map((msg, index) => 
+            index === prev.length - 1 && msg.role === "assistant"
+              ? { 
+                  ...msg, 
+                  content: { response: msg.content.response + "\n\n[Response stopped by user]" },
+                  isStreaming: false,
+                  isTyping: false,
+                  isThinking: false
+                }
+              : msg
+          )
+        );
+      } catch (error) {
+        console.error('Error aborting request:', error);
+      } finally {
+        // Reset all states
+        setIsLoading(false);
+        setIsTyping(false);
+        setIsThinking(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     
     if (!prompt.trim() && !extractedText) return;
     
@@ -66,52 +81,65 @@ export default function TaskSenseiComp({isAnimate}) {
     setMessages((prev) => [...prev, userMessage]);
     setPrompt("");
     setIsLoading(true);
-    setIsTyping(true);
+    setIsThinking(true);
+    
+    // Create an AbortController to allow stopping the request
+    abortControllerRef.current = new AbortController();
+    
+    // Add a placeholder AI message that will be updated with streaming content
+    const aiMessageId = Date.now();
+    setMessages((prev) => [...prev, { 
+      role: "assistant", 
+      content: { response: "Thinking..." }, 
+      id: aiMessageId,
+      isStreaming: true,
+      isThinking: true
+    }]);
     
     try {
-      // Create FormData to send both text and file
       const formData = new FormData();
       if (extractedText) {
         formData.append("extractedText", extractedText);
+        // Add the file name if available
+        if (selectedFile) {
+          formData.append("fileName", selectedFile.name.toLowerCase());
+        }
       }
-      formData.append("prompt", prompt);
+      formData.append("prompt", prompt.toLowerCase());
+      formData.append("isVectorSearch", isVectorSearch);
 
       if(!extractedText){
-        selectedFile !== "undefined" &&setPrevName([...prevName, ""]);
+        selectedFile !== "undefined" && setPrevName([...prevName, ""]);
       }
       
-      // Add a placeholder AI message that will be updated with streaming content
-      const aiMessageId = Date.now();
-      setMessages((prev) => [...prev, { 
-        role: "assistant", 
-        content: "", 
-        id: aiMessageId,
-        isStreaming: true
-      }]);
-      
-      // Create an AbortController to allow stopping the request
-      abortControllerRef.current = new AbortController();
-      
-      // Call the TaskSensei API with fetch
-      const response = await fetch("/api/tasksensei", {
+      // Call the API with the appropriate endpoint
+      const response = await fetch("/api/tasksensei/newAIAPI", {
         method: "POST",
         body: formData,
         signal: abortControllerRef.current.signal
       });
       
       if (!response.ok) {
-        console.log(`API error: ${response.status}`);
-        return;
+        throw new Error(`API error: ${response.status}`);
       }
       
+      setIsThinking(false);
+      setIsTyping(true);
+      
+      // Update the message to show typing cursor
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.id === aiMessageId 
+            ? { ...msg, content: { response: "" }, isThinking: false } 
+            : msg
+        )
+      );
       
       setFilePreview(null);
-      // Get the reader from the response body stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = "";
       
-      // Process the stream
       while (true) {
         const { done, value } = await reader.read();
         
@@ -119,21 +147,32 @@ export default function TaskSenseiComp({isAnimate}) {
           break;
         }
         
-        // Decode the chunk and update the message
         const chunk = decoder.decode(value, { stream: true });
         accumulatedContent += chunk;
         
-        // Update the AI message with the accumulated content
-        setMessages((prev) => 
-          prev.map(msg => 
-            msg.id === aiMessageId 
-              ? { ...msg, content: { response: accumulatedContent } } 
-              : msg
-          )
-        );
+        try {
+          const parsedContent = JSON.parse(accumulatedContent);
+          const contextText = parsedContent.context && parsedContent.context[0] ? parsedContent.context[0].text : "";
+          
+          setMessages((prev) => 
+            prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, content: { response: contextText } } 
+                : msg
+            )
+          );
+        } catch (e) {
+          // If JSON parsing fails, just show the raw content
+          setMessages((prev) => 
+            prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, content: { response: accumulatedContent } } 
+                : msg
+            )
+          );
+        }
       }
       
-      // Mark the message as no longer streaming
       setMessages((prev) => 
         prev.map(msg => 
           msg.id === aiMessageId 
@@ -142,27 +181,29 @@ export default function TaskSenseiComp({isAnimate}) {
         )
       );
       
-      // Clear file after successful submission
-      
       setSelectedFile(null);
       setExtractedText("");
       setSelectedImage(null);
       setFilePreview(null);
     } catch (error) {
-      // Check if the error is due to aborting the request
       if (error.name === 'AbortError') {
         console.log('Request was aborted');
-        // The message was already updated in the stopGeneration function
+        setMessages((prev) => 
+          prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { ...msg, isStreaming: false, content: { response: msg.content.response + "\n\n[Response stopped by user]" } } 
+              : msg
+          )
+        );
       } else {
         console.error("Error calling TaskSensei API:", error);
         toast.error("Failed to get a response from TaskSensei");
-        
-        // Remove the streaming message if there was an error
         setMessages((prev) => prev.filter(msg => !msg.isStreaming));
       }
     } finally {
       setIsLoading(false);
       setIsTyping(false);
+      setIsThinking(false);
       abortControllerRef.current = null;
     }
   };
@@ -171,7 +212,7 @@ export default function TaskSenseiComp({isAnimate}) {
   // Function to handle file selection
   const handleFileChange = async (e) => {
     const file = e?.target?.files[0];
-    console.log(file);
+    
     
     file && file !== "undefined" && setPrevName([...prevName, file?.name]);
     
@@ -187,8 +228,8 @@ export default function TaskSenseiComp({isAnimate}) {
     }
     
     // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size should be less than 5MB");
+    if (file.type === "application/pdf" && file.size > 3 * 1024 * 1024) {
+      toast.error("File size should be less than 3MB");
       return;
     }
     
@@ -303,7 +344,7 @@ export default function TaskSenseiComp({isAnimate}) {
       }
       
       // Regular text
-      return <p key={index} className="whitespace-pre-wrap">{part}</p>;
+      return <p key={index} className={`whitespace-pre-wrap ${content === "Thinking..." && "animate-pulse"}`}>{part}</p>;
     });
     // return <p className="whitespace-pre-wrap">{content}</p>;
   };
@@ -318,6 +359,9 @@ export default function TaskSenseiComp({isAnimate}) {
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+  useEffect(() => {
+    selectedFile ? setIsVectorSearch(true) : setIsVectorSearch(false)
+  }, [selectedFile]);
   return (
     <motion.div className="flex flex-col justify-center rounded-lg overflow-hidden h-full" 
     initial={{width: isAnimate ? "0vw" : "100vw"}}
@@ -327,20 +371,20 @@ export default function TaskSenseiComp({isAnimate}) {
     transition={{duration: 0.8, delay: 0.1, type: "spring", boxShadow: { delay: 1}}}>
       {/* Chat header */}
       <div className="bg-[var(--dark-btn)] text-white p-4  rounded-t-lg">
-        <motion.h2 initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className="text-xl font-semibold max-sm:text-lg">TaskSensei</motion.h2>
-        <motion.p initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className="text-sm opacity-80 max-sm:text-xs">Ask me anything about task management</motion.p>
+        <motion.h2 initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className={` font-semibold ${isAnimate ? "text-xl  max-sm:text-lg" : "text-lg"}`}>TaskSensei</motion.h2>
+        <motion.p initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className={` opacity-80  ${isAnimate ? "text-sm  max-sm:text-xs" : "text-xs"} `}>Ask me anything about task management</motion.p>
       </div>
       
       {/* Chat messages */}
       <motion.div className="h-full overflow-y-auto space-y-4 sensei_scroll p-4" initial={{height: isAnimate ? "0%" : "100%"}} animate={{height: isAnimate ? "100%" : "100%"}} transition={{delay: 0.8, duration: 0.4}}>
         {messages.length === 0 ? (
           <motion.div className="flex flex-col gap-y-5 items-center justify-center text-gray-500 h-full m-0" initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.8, duration: 0.5}}>
-            <p className="text-center text-xl font-semibold max-sm:text-lg">Ask TaskSensei for help with your tasks</p>
-            <ul className="text-sm list-disc gap-y-1 flex flex-col text-slate-400 max-sm:text-xs max-sm:pl-4">
-              <li>How can I prioritize my tasks effectively?</li>
-              <li>What's the best way to break down a large project?</li>
-              <li>How do I manage my time better?</li>
+            <p className={`text-center font-semibold  ${isAnimate ? "text-xl  max-sm:text-lg" : "text-lg"}`}>Ask TaskSensei for help with your tasks</p>
+            <ul className={`list-disc  gap-y-1 flex flex-col text-slate-400 ${isAnimate ? "text-sm  max-sm:text-xs" : "text-xs"}`}>
               <li>Upload a document or image for analysis</li>
+              <li>Ask any query for the document</li>
+              <li>Use file name to have more chances to get a relevant response</li>
+              <li>What's the best way to break down a large project?</li>
             </ul>
           </motion.div>
           
@@ -361,7 +405,7 @@ export default function TaskSenseiComp({isAnimate}) {
               >
                 {message.role === "user" ? (
                   <div>
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <p className={`whitespace-pre-wrap`}>{message.content}</p>
                     {message.file && (
                       <div className="mt-2 p-2 bg-white text-slate-800 bg-opacity-20 rounded flex items-center">
                         <Paperclip size={16} className="mr-2" />
@@ -372,7 +416,7 @@ export default function TaskSenseiComp({isAnimate}) {
                 ) : (
                   <div>
                     {formatMessage(message.content.response)}
-                    {message.isStreaming && (
+                    {message.isStreaming && !message.isThinking && (
                       <span className="inline-block w-1 h-4 ml-1 animate-pulse bg-gray-700"></span>
                     )}
                   </div>
@@ -446,9 +490,19 @@ export default function TaskSenseiComp({isAnimate}) {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Ask TaskSensei for help..."
-                className="flex-1 py-2 pl-12 pr-12 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--dark-btn)] max-sm:text-sm text-slate-600"
+                className={`flex-1 py-2 pl-12 pr-12 pb-12 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--dark-btn)] text-slate-600 ${isAnimate ? "text-base max-sm:text-sm" : "text-sm"}`}
                 disabled={isLoading}
             />
+            <span className="absolute bottom-2 left-13 flex justify-end">
+              <button
+                type="button"
+                onClick={() => !selectedFile ? setIsVectorSearch(!isVectorSearch) : null}
+                className={`${isVectorSearch ? "bg-gray-700/70" : "bg-gray-700/40"} text-slate-200 px-2 py-1.5 rounded-full hover:bg-opacity-90 transition-colors text-xs flex items-center gap-2 justify-center h-fit cursor-pointer`}
+              >
+                <Database size={12}/>
+                Vector Search
+              </button>
+            </span>
             {
               isLoading ? (
                 <button
@@ -468,8 +522,8 @@ export default function TaskSenseiComp({isAnimate}) {
                   <span className="-translate-x-0.5 w-fit"><Send size={20} /></span>
                 </button>
             }
-            
         </div>
+        
       </form>
     </motion.div>
   );

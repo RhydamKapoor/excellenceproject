@@ -105,8 +105,8 @@ export default function AssignUsers() {
                       <Grip size={18} strokeWidth={1.5}/>
                       Manage users
                     </DialogTrigger>
-                    <DialogContent className="w-2/3 max-lg:w-2/3 max-md:w-full flex max-lg:flex-col *:w-1/2 max-lg:*:w-full h-2/5 max-lg:h-[90vh] overflow-y-auto">
-                      <div className=" lg:sticky max-lg:relative top-0 flex flex-col gap-y-6 border-r-2 max-lg:border-r-0 border-[var(--specialtext)] max-lg:py-7">
+                    <DialogContent className="w-2/3 max-lg:w-2/3 max-md:w-full flex max-lg:flex-col *:w-1/2 max-lg:*:w-full h-3/4 max-lg:h-[90vh] overflow-y-auto p-0">
+                      <div className=" lg:sticky max-lg:relative top-0 flex flex-col gap-y-6 shadow-lg py-7">
                         
                         <DialogHeader className="items-center pb-4">
                           <DialogTitle className="text-[var(--specialtext)] text-lg">
@@ -150,7 +150,7 @@ export default function AssignUsers() {
                           </div>
                         </div>
                       </div>
-                      <div className=" flex flex-col gap-y-2 h-full overflow-y-auto">
+                      <div className=" flex flex-col gap-y-2 h-full overflow-y-auto py-7">
                         <DialogHeader className="items-center pb-4">
                           <DialogTitle className="text-[var(--specialtext)] text-lg">
                             <span className="relative flex items-center text-xl">

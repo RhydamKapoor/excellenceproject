@@ -1,15 +1,25 @@
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { OpenAIEmbeddings } from "@langchain/openai";
 import { Pinecone } from "@pinecone-database/pinecone";
-import { authOptions } from "../auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 import bm25 from "wink-bm25-text-search";
 import nlp from "wink-nlp-utils";
+import { Worker } from "worker_threads";
+import path from "path";
+import { authOptions } from "../auth/[...nextauth]/route";
+
+export const runtime = "nodejs";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const pinecone = new Pinecone();
+// Constants for worker pool
+const NUM_WORKERS = 4; // Reduced to 1 worker
+const WORKER_TIMEOUT = 420000; // 5 minutes per worker
+const OVERALL_TIMEOUT = 900000; // 15 minutes total
+const CHUNK_SIZE = 400; // Reduced chunk size
+const CHUNK_OVERLAP = 200; // Reduced overlap
+
 // Helper function to simulate thinking time
 
 export async function POST(req) {
@@ -19,198 +29,57 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Accessing form data
     const formData = await req.formData();
+
+    // Getting values of prompt and extractedText
     const prompt = formData.get("prompt")
       ? formData.get("prompt")
-      : `Read the text or file`;
+      : `Read the text or file and give a short summary of the text or file.`;
     const extractedText = formData.get("extractedText");
+    const isVectorSearch = formData.get("isVectorSearch");
+    const fileName = formData.get("fileName"); // Get the file name
 
-    let allText = "";
-    let hasProcessingError = false;
-    let processingErrors = [];
+    // Function to extract file name from prompt
+    const extractFileNameFromPrompt = (prompt) => {
+      // Common patterns for file references
+      const patterns = [
+        /(?:from|in|of|about)\s+([a-zA-Z0-9_\-\.]+\.(?:pdf|txt|docx?|xlsx?|pptx?|jpg|jpeg|png|gif))/i,
+        /file\s+([a-zA-Z0-9_\-\.]+\.(?:pdf|txt|docx?|xlsx?|pptx?|jpg|jpeg|png|gif))/i,
+        /document\s+([a-zA-Z0-9_\-\.]+\.(?:pdf|txt|docx?|xlsx?|pptx?|jpg|jpeg|png|gif))/i
+      ];
 
-    if (!extractedText && files.length === 0) {
-      console.log("Using only prompt as input");
-      allText = prompt;
-    } else {
-      // Use extracted text if available
-      if (extractedText) {
-        console.log("Using extracted text from image");
-        allText = extractedText;
+      for (const pattern of patterns) {
+        const match = prompt.match(pattern);
+        if (match && match[1]) {
+          return match[1];
+        }
       }
+      return null;
+    };
 
-    }
+    // Extract file name from prompt if not provided directly
+    const promptFileName = extractFileNameFromPrompt(prompt);
+    console.log("File name from prompt:", promptFileName);
 
-    console.log("Text length:", allText.length);
-    if (extractedText && allText.length < 10) {
-      return NextResponse.json(
-        {
-          message: "No text content found",
-          response:
-            "I couldn't find any text content to analyze. Please make sure your file contains text or try uploading a different file.",
-          context: { sources: [] },
-          processingErrors:
-            processingErrors.length > 0 ? processingErrors : undefined,
-        },
-        { status: 200 }
-      );
-    }
-
-    console.log("Starting chunking process");
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
+    // Use either the uploaded file name or the one from prompt
+    const targetFileName = fileName || promptFileName;
+    console.log("Target file name for search:", targetFileName);
     
-    // Ensure we have enough text to process
-    let textToProcess = allText;
-    if (textToProcess.length < 100) {  // If text is too short
-      textToProcess = textToProcess + "\n\n" + textToProcess;  // Duplicate the text to ensure we have enough content
-    }
-    
-    const chunks = await textSplitter.splitText(textToProcess);
-    console.log("Chunks created:", chunks.length);
 
-    console.log("Initializing embeddings");
-    const embeddings = new OpenAIEmbeddings();
+    // If not vector search, use GPT-4 directly
+    if (isVectorSearch === "false") {
+      const stream = new TransformStream();
+      const writer = stream.writable.getWriter();
 
-    console.log("Getting Pinecone index");
-    const indexName = process.env.PINECONE_INDEX_NAME;
-    console.log("Index name:", indexName);
-    const index = pinecone.Index(indexName);
-    console.log("Pinecone index initialized");
-
-    // Generate a unique ID for this session
-    const sessionId = `session-${Date.now()}`;
-    const userId = session.user.id;  // Get the user ID from the session
-
-    console.log("Creating vectors");
-    const textStore = [];
-    const vectors = [];
-    for (let i = 0; i < chunks.length; i++) {
-      console.log(`Processing chunk ${i + 1}/${chunks.length}`);
-      const chunk = chunks[i];
-      const embedding = await embeddings.embedQuery(chunk);
-
-      vectors.push({
-        id: `${sessionId}-chunk-${i}`,
-        values: embedding,
-        metadata: {
-          text: chunk,
-          type: "user-query",
-          timestamp: new Date().toISOString(),
-          source: extractedText ? "file/image" : "prompt",
-          sessionId: sessionId,
-          userId: userId,  // Store the user ID
-        },
-      });
-
-      textStore.push({ id: `${sessionId}-chunk-${i}`, text: chunk });
-    }
-    console.log("Vectors created:", vectors.length);
-
-    console.log("Upserting to Pinecone");
-    await index.upsert(vectors);
-    console.log("Vectors upserted successfully");
-
-    console.log("Querying Pinecone for similar vectors");
-    const queryEmbedding = await embeddings.embedQuery(prompt);
-    const queryResponse = await index.query({
-      vector: queryEmbedding,
-      topK: 10,
-      includeMetadata: true,
-      includeValues: true,
-      filter: {
-        userId: userId,  // Only match the current user's data
-        $or: [
-          { sessionId: sessionId },  // Current session
-          { type: "user-query" }     // Historical queries
-        ]
-      },
-    });
-
-    const engine = bm25();
-    engine.defineConfig({ fldWeights: { text: 1 } });
-    engine.definePrepTasks([
-      nlp.string.lowerCase,
-      nlp.string.tokenize0,
-      nlp.tokens.removeWords,
-      nlp.tokens.stem,
-    ]);
-
-    // Index all your chunk texts (from textStore)
-    let bm25Results = [];
-    if (textStore.length >= 2) {
-      textStore.forEach((doc) => {
-        engine.addDoc({ text: doc.text }, doc.id);
-      });
-      engine.consolidate();
-      bm25Results = engine.search(prompt);
-    } else {
-      bm25Results = queryResponse.matches.map(match => ({
-        id: match.id,
-        score: 0.8
-      }));
-    }
-
-    // Create a map of BM25 scores
-    const bm25ScoreMap = new Map();
-    bm25Results.forEach((r) => {
-      bm25ScoreMap.set(r.id, r.score);
-    });
-
-    // Now rerank Pinecone results by combining vector score + BM25
-    const rerankedMatches = queryResponse.matches
-      .map((match) => {
-        const bm25Score = bm25ScoreMap.get(match.id) || 0;
-        return {
-          ...match,
-          rerankScore: match.score * 0.7 + bm25Score * 0.3,
-        };
-      })
-      .sort((a, b) => b.rerankScore - a.rerankScore);
-
-    console.log("Query results:", rerankedMatches);
-    const relevantContext = rerankedMatches && rerankedMatches.length > 0
-      ? rerankedMatches
-          .filter((match) => match.rerankScore >= 0.8) 
-          .map((match) =>
-            match.metadata.text.length > 20
-              ? match.metadata.text
-              : "[Skipped short text]"
-          )
-          .join("\n\n")
-      : null;
-
-    // Format the prompt for OpenAI with better context handling
-    const formattedPrompt = relevantContext
-      ? `Here is the content to analyze:\n\n${relevantContext}\n\nUser Query: ${prompt}\n\nPlease analyze this content and provide specific information about the writer, tasks, deadlines, and organization strategies. If the user is asking about specific details like the writer's name, please extract and provide that information directly.
-      If you get any relevant context from the user query, you should write it separately in the context section after contextualised, like {relevant context: ${relevantContext}}.
-      If user tells do's and don't's, you should coperate with it.`
-      : `Please analyze the following content and provide insights about tasks, deadlines, and organization strategies:\n\n${allText}\n\nUser Query: ${prompt}`;
-
-    console.log("Generating response with OpenAI");
-    console.log("Prompt length:", formattedPrompt.length);
-
-    // Create a TransformStream to handle the streaming response
-    const encoder = new TextEncoder();
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
-
-    // Create an AbortController for the streaming
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    // Start the OpenAI streaming response in the background
-    (async () => {
-      try {
-        const history = [{ role: "user", content: prompt }];
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: `You are TaskSensei, a world-class expert in task management, productivity, and organization strategies. 
+      (async () => {
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content: `You are TaskSensei, a world-class expert in task management, productivity, and organization strategies. 
               Your goal is to carefully analyze the provided input and deliver clear, actionable insights.
               You give queries answer to the user in a friendly and engaging manner. If user ask about the context of the query, you give the context of the query.
               You search in the pinecone to see the score of the chunk related to the user query, and give relevant context to the user query. You create contextual answer to the user query.
@@ -248,46 +117,750 @@ export async function POST(req) {
               If the input is unclear or missing details, politely suggest how to improve task clarity.
               
               End your responses with a clear call to action or next steps to help users move forward.`,
-            },
-            ...history,
-            {
-              role: "user",
-              content: formattedPrompt,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 1000,
-          stream: true,
-        }, { signal });  // Pass the signal to the OpenAI call
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            stream: true,
+            temperature: 0.7,
+          });
 
-        // Process the stream
-        for await (const chunk of completion) {
-          const content = chunk.choices[0]?.delta?.content || "";
-          if (content) {
-            await writer.write(encoder.encode(content));
+          for await (const chunk of completion) {
+            if (req.signal.aborted) {
+              console.log('Request was aborted by client');
+              break;
+            }
+            
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              await writer.write(new TextEncoder().encode(content));
+            }
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('Streaming was aborted');
+          } else {
+            console.error("Error in streaming:", error);
+            await writer.write(
+              new TextEncoder().encode("Error generating response.")
+            );
+          }
+        } finally {
+          try {
+            await writer.close();
+          } catch (error) {
+            console.error('Error closing writer:', error);
           }
         }
+      })();
 
-        await writer.close();
+      return new NextResponse(stream.readable, {
+        headers: {
+          "Content-Type": "text/plain",
+          "Transfer-Encoding": "chunked",
+        },
+      });
+    }
+
+    // Continue with RAG processing for vector search
+    let textToProcess = extractedText || prompt;
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: CHUNK_SIZE,
+      chunkOverlap: CHUNK_OVERLAP,
+    });
+
+    // ------------------Split the text into chunks----------------------
+
+    // Splitting the text into chunks
+    const chunks = await textSplitter.splitText(textToProcess);
+
+    // ------------------Split the text into chunks----------------------
+
+    console.log("Initializing embeddings");
+
+    // Getting Pinecone index
+    const indexName = process.env.PINECONE_INDEX_NAME;
+    const index = pinecone.Index(indexName);
+
+    // Generate a unique ID for this session
+    const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const userId = session.user.id; // Get the user ID from the session
+
+    console.log("Starting new session:", { sessionId, userId });
+
+    // ------------Creating vectors using chunks------------
+
+    const vectors = [];
+    const workers = [];
+    const workerPromises = [];
+
+    console.log("Starting vector creation with chunks:", chunks.length);
+
+    // Only create vectors if we have extractedText (files)
+    if (extractedText) {
+      // Created worker pool
+      for (let i = 0; i < NUM_WORKERS; i++) {
+        const worker = new Worker(
+          path.join(process.cwd(), "src/app/api/tasksensei/worker.js")
+        );
+        workers.push(worker);
+
+        // Create a promise for each worker with timeout
+        const promise = new Promise((resolve, reject) => {
+          let timeoutId = setTimeout(() => {
+            console.error(
+              `Worker ${i} timed out after ${WORKER_TIMEOUT / 1000} seconds`
+            );
+            worker.terminate();
+            reject(new Error(`Worker ${i} timed out`));
+          }, WORKER_TIMEOUT);
+
+          worker.on("message", (result) => {
+            if (result.error) {
+              console.error(`Worker ${i} error:`, result.error);
+              if (result.error.includes("rate limit")) {
+                const waitTime = 30000; // Wait 30 seconds before retrying
+                console.log(
+                  `Worker ${i} hit rate limit. Waiting ${
+                    waitTime / 1000
+                  } seconds before retrying...`
+                );
+                setTimeout(() => {
+                  if (chunks.length > 0) {
+                    const nextChunk = chunks.shift();
+                    console.log(
+                      `Worker ${i} retrying with next chunk after rate limit`
+                    );
+                    worker.postMessage({
+                      chunk: nextChunk,
+                      sessionId,
+                      userId,
+                      index: vectors.length,
+                      source: "file/image",
+                      fullText: textToProcess,
+                      fileName: fileName
+                    });
+                  } else {
+                    clearTimeout(timeoutId);
+                    resolve();
+                  }
+                }, waitTime);
+              } else {
+                clearTimeout(timeoutId);
+                // Instead of rejecting, try to recover
+                console.log(
+                  `Worker ${i} encountered error, attempting to recover...`
+                );
+                if (chunks.length > 0) {
+                  const nextChunk = chunks.shift();
+                  worker.postMessage({
+                    chunk: nextChunk,
+                    sessionId,
+                    userId,
+                    index: vectors.length,
+                    source: "file/image",
+                    fullText: textToProcess,
+                    fileName: fileName  // Add fileName to the message
+                  });
+                } else {
+                  resolve();
+                }
+              }
+              return;
+            }
+
+            vectors.push(result);
+            console.log(
+              `Worker ${i} processed chunk ${vectors.length} of ${
+                chunks.length + vectors.length
+              }`
+            );
+
+            if (chunks.length > 0) {
+              const nextChunk = chunks.shift();
+              worker.postMessage({
+                chunk: nextChunk,
+                sessionId,
+                userId,
+                index: vectors.length,
+                source: "file/image",
+                fullText: textToProcess,
+                fileName: fileName
+              });
+            } else {
+              console.log(`Worker ${i} completed all tasks`);
+              clearTimeout(timeoutId);
+              resolve();
+            }
+          });
+
+          worker.on("error", (error) => {
+            clearTimeout(timeoutId);
+            console.error(`Worker ${i} error:`, error);
+            // Instead of rejecting, try to recover
+            console.log(
+              `Worker ${i} encountered error, attempting to recover...`
+            );
+            if (chunks.length > 0) {
+              const nextChunk = chunks.shift();
+              worker.postMessage({
+                chunk: nextChunk,
+                sessionId,
+                userId,
+                index: vectors.length,
+                source: "file/image",
+                fullText: textToProcess,
+                fileName: fileName  // Add fileName to the message
+              });
+            } else {
+              resolve();
+            }
+          });
+
+          worker.on("exit", (code) => {
+            clearTimeout(timeoutId);
+            if (code !== 0) {
+              console.error(`Worker ${i} stopped with exit code ${code}`);
+              // Instead of rejecting, try to recover
+              console.log(`Worker ${i} exited, attempting to recover...`);
+              if (chunks.length > 0) {
+                const nextChunk = chunks.shift();
+                worker.postMessage({
+                  chunk: nextChunk,
+                  sessionId,
+                  userId,
+                  index: vectors.length,
+                  source: "file/image",
+                  fullText: textToProcess,
+                  fileName: fileName  // Add fileName to the message
+                });
+              } else {
+                resolve();
+              }
+            }
+          });
+
+          // Start processing the first chunk
+          if (chunks.length > 0) {
+            const chunk = chunks.shift();
+            worker.postMessage({
+              chunk,
+              sessionId,
+              userId,
+              index: vectors.length,
+              source: "file/image",
+              fullText: textToProcess,
+              fileName: fileName
+            });
+          } else {
+            resolve();
+          }
+        });
+
+        workerPromises.push(promise);
+      }
+
+      try {
+        console.log("Starting worker processing...");
+        // Wait for all workers to complete with timeout
+        await Promise.race([
+          Promise.all(workerPromises),
+          new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `Overall processing timeout after ${
+                      OVERALL_TIMEOUT / 1000
+                    } seconds`
+                  )
+                ),
+              OVERALL_TIMEOUT
+            )
+          ),
+        ]);
+        console.log("All workers completed successfully");
       } catch (error) {
-        if (error.name === 'AbortError') {
-          console.log('Streaming was aborted');
-          await writer.write(encoder.encode('\n\n[Response stopped by user]'));
-        } else {
-          console.error("Streaming error:", error);
-          await writer.abort(error);
+        console.error("Error in worker processing:", error);
+        // Terminate all workers in case of error
+        workers.forEach((worker) => {
+          try {
+            worker.terminate();
+          } catch (e) {
+            console.error("Error terminating worker:", e);
+          }
+        });
+        throw error;
+      } finally {
+        console.log("Cleaning up workers...");
+        // Always terminate workers
+        workers.forEach((worker) => {
+          try {
+            worker.terminate();
+          } catch (e) {
+            console.error("Error terminating worker:", e);
+          }
+        });
+        console.log("Workers cleaned up");
+      }
+
+      // Filter out any error objects and validate vectors before upserting
+      const validVectors = vectors.filter((vector) => {
+        if (vector.error) {
+          console.error("Skipping invalid vector with error:", vector.error);
+          return false;
+        }
+        return true;
+      });
+
+      if (validVectors.length === 0) {
+        console.error("No valid vectors to upsert!");
+        return NextResponse.json(
+          { error: "Failed to create valid vectors from the text" },
+          { status: 500 }
+        );
+      }
+
+      // Upserting the vectors to Pinecone
+      await index.upsert(validVectors);
+      console.log("Vectors upserted successfully");
+    }
+
+    let vectorEmbedding;
+
+    if (vectors.length > 0) {
+      console.log("Vectors found, using first vector");
+      vectorEmbedding = vectors[0].values;
+    } else {
+      console.log("No vectors found, creating embedding for prompt");
+      const queryResponse = await fetch("http://localhost:11434/api/embeddings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "nomic-embed-text",
+          prompt: prompt,
+        }),
+      });
+      const data = await queryResponse.json();
+      vectorEmbedding = data.embedding;
+    }
+
+    // Add retry logic for Pinecone query
+    let queryResponse;
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryDelay = 5000;
+    const queryTimeout = 30000;
+
+    while (retryCount < maxRetries) {
+      try {
+        console.log(
+          `Attempting Pinecone query (attempt ${retryCount + 1}/${maxRetries})`
+        );
+
+        // Create a promise that will reject after timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Query timeout")), queryTimeout);
+        });
+
+        // First try with current session
+        let queryPromise = index.query({
+          vector: vectorEmbedding,
+          topK: 10,
+          includeMetadata: true,
+          includeValues: true,
+          filter: {
+            userId: userId,
+            sessionId: sessionId,
+            source: "file/image"
+          }
+        });
+
+        // Log the query parameters for debugging
+        console.log("Query parameters (current session):", {
+          vector: vectorEmbedding.length,
+          topK: 10,
+          filter: {
+            userId: userId,
+            sessionId: sessionId,
+            source: "file/image"
+          }
+        });
+
+        queryResponse = await Promise.race([queryPromise, timeoutPromise]);
+
+        // If no results in current session, try broader search
+        if (!queryResponse.matches || queryResponse.matches.length === 0) {
+          console.log("No results in current session, trying broader search...");
+          queryPromise = index.query({
+            vector: vectorEmbedding,
+            topK: 10,
+            includeMetadata: true,
+            includeValues: true,
+            filter: {
+              userId: userId,
+              source: "file/image"
+            }
+          });
+
+          console.log("Query parameters (broader search):", {
+            vector: vectorEmbedding.length,
+            topK: 10,
+            filter: {
+              userId: userId,
+              source: "file/image"
+            }
+          });
+
+          queryResponse = await Promise.race([queryPromise, timeoutPromise]);
+        }
+
+        // If still no results, try without any filters
+        if (!queryResponse.matches || queryResponse.matches.length === 0) {
+          console.log("No results in broader search, trying unfiltered search...");
+          queryPromise = index.query({
+            vector: vectorEmbedding,
+            topK: 10,
+            includeMetadata: true,
+            includeValues: true
+          });
+
+          console.log("Query parameters (unfiltered):", {
+            vector: vectorEmbedding.length,
+            topK: 10
+          });
+
+          queryResponse = await Promise.race([queryPromise, timeoutPromise]);
+        }
+
+        // Log the query response for debugging
+        console.log("Query response matches:", queryResponse.matches?.length || 0);
+        if (queryResponse.matches && queryResponse.matches.length > 0) {
+          console.log("First match metadata:", queryResponse.matches[0].metadata);
+          console.log("First match score:", queryResponse.matches[0].score);
+          break;
+        }
+
+        // If no results, wait and retry
+        console.log("No results found, retrying...");
+        retryCount++;
+        if (retryCount < maxRetries) {
+          const delay = retryDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+          console.log(`Waiting ${delay / 1000} seconds before next attempt...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        console.error(
+          `Error in Pinecone query (attempt ${retryCount + 1}):`,
+          error
+        );
+        retryCount++;
+        if (retryCount < maxRetries) {
+          const delay = retryDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+          console.log(`Waiting ${delay / 1000} seconds before next attempt...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
-    })();
+    }
 
-    // Return the readable stream with proper headers
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+    console.log("Query response:", queryResponse.matches);
+
+    const pineconeResults = queryResponse.matches.map((m) => ({
+      text: m.metadata.text,
+      context: m.metadata.context,
+      source: "pinecone",
+      score: m.score,
+    }));
+    // console.log("Pinecone results:", pineconeResults);
+
+    // If still no results, return early with a helpful message
+    if (pineconeResults.length === 0) {
+      console.log("No results found in Pinecone after all attempts");
+      return NextResponse.json(
+        {
+          error:
+            "No relevant information found. Please try rephrasing your query or check if the document has been properly processed.",
+          details:
+            "The system couldn't find any matching content in the processed documents.",
+        },
+        { status: 404 }
+      );
+    }
+
+    // Initialize BM25 engine
+    const engine = bm25();
+    engine.defineConfig({ fldWeights: { text: 1 } });
+    engine.definePrepTasks([
+      nlp.string.lowerCase,
+      nlp.string.tokenize0,
+      nlp.tokens.removeWords,
+      nlp.tokens.stem,
+    ]);
+
+    // Add documents to BM25 engine
+    const bm25Docs = [];
+    pineconeResults.forEach((doc, i) => {
+      if (doc.context && doc.context.trim().length > 0) {
+        const text = `${doc.context}`;
+        engine.addDoc({ text }, i);
+        bm25Docs.push({ ...doc, text });
+      }
     });
+
+    // Get BM25 results
+    let bm25Results = [];
+    
+    if (bm25Docs.length > 1) {  // Only use BM25 if we have more than 1 document
+      try {
+        console.log(`Processing BM25 with ${bm25Docs.length} valid documents`);
+        engine.consolidate();
+        const results = engine.search(prompt);
+       
+        // If no results from BM25, use Pinecone results directly
+        if (!results || results.length === 0) {
+          console.log("No BM25 results, falling back to Pinecone results");
+          bm25Results = pineconeResults.slice(0, 10).map((doc) => ({
+            text: doc.text || doc.context || "",
+            context: doc.context || doc.text || "",
+            bm25Score: 1.0,
+            source: "pinecone",
+          }));
+        } else {
+          bm25Results = results.slice(0, 10).map(([id, score]) => {
+            const doc = bm25Docs[parseInt(id)];
+            return {
+              text: doc.text || doc.context || "",
+              context: doc.context || doc.text || "",
+              bm25Score: score,
+              source: "bm25",
+            };
+          });
+        }
+        console.log("BM25 results:", bm25Results);
+      } catch (error) {
+        console.error("BM25 processing failed:", error);
+        // Fallback to using valid documents directly
+        bm25Results = bm25Docs.slice(0, 10).map((doc) => ({
+          text: doc.text || doc.context || "",
+          context: doc.context || doc.text || "",
+          bm25Score: 1.0,
+          source: "fallback",
+        }));
+      }
+    } else {
+      console.log("Not enough documents for BM25, using Pinecone results directly");
+      bm25Results = pineconeResults
+        .filter((doc) => (doc.context || doc.text) && (doc.context || doc.text).trim().length > 0)
+        .slice(0, 10)
+        .map((doc) => ({
+          text: doc.text || doc.context || "",
+          context: doc.context || doc.text || "",
+          bm25Score: 1.0,
+          source: "pinecone",
+        }));
+    }
+
+    // Validate that we have results
+    if (bm25Results.length === 0) {
+      console.error("No valid results found after BM25 processing");
+      return NextResponse.json(
+        { error: "No relevant results found" },
+        { status: 404 }
+      );
+    }
+
+    // Use GPT-4 to select the most relevant result
+    try {
+      console.log("Starting GPT-4 selection...");
+      const selectionPrompt = `
+      You are an intelligent reranker helping a Retrieval-Augmented Generation (RAG) system.
+
+      Your task is to rank chunks of text (contexts) based on how well they answer the user query.
+
+      - Combine all the contexts and see the relevant information and answer the query.
+      - Do NOT assume or infer meaning beyond the given context.
+      - Prioritize contexts that use specific terms, names, or keywords from the query.
+      - Be strict — if a context doesn't seem relevant, rank it lower.
+      - Return only the most relevant context with a short explanation.
+      - If no context is relevant, return index 0 with an explanation of why none are relevant.
+
+      ---
+
+      User Query:
+      "${prompt}"
+
+      ---
+
+      Contexts:
+      ${bm25Results
+        .map((ctx, i) => `Context [${i + 1}]: ${ctx.context || ctx.text}`)
+        .join("\n\n")}
+
+      ---
+
+      Instructions:
+      1. Evaluate all contexts above for how relevant they are to answering the user query.
+      2. Return a JSON object with the index of the most relevant context and your reasoning.
+      3. If no context is relevant, use index 0 and explain why.
+
+      Response Format:
+      {
+        "index": 0,
+        "reason": "This context is most relevant because..."
+      }
+      `;
+
+      const selectionResponse = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a precise evaluator. Return only valid JSON with the index of the most relevant context and your reasoning. If no context is relevant, use index 0 and explain why.",
+          },
+          {
+            role: "user",
+            content: selectionPrompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      });
+
+      const selectedResult = JSON.parse(
+        selectionResponse.choices[0].message.content
+      );
+      console.log("Selected result:", selectedResult);
+
+      // Handle case where no context is relevant
+      if (selectedResult.index === -1) {
+        console.log(
+          "No relevant context found, using first result with explanation"
+        );
+      }
+
+      
+      const finalResult = selectedResult.index !== 0 ? bm25Results[selectedResult.index - 1] : {text:`No relevant information found.`, context:`No relevant information found or maybe missing`, reason: "No relevant information found."};
+
+      // Create a streaming response
+      const stream = new TransformStream();
+      const writer = stream.writable.getWriter();
+
+      // Start streaming the response
+      (async () => {
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content: `You are TaskSensei, a world-class expert in task management, productivity, and organization strategies. 
+                Your goal is to carefully analyze the provided input and deliver clear, actionable insights. 
+                Use ONLY the information from the provided context to answer the query.
+                If the context doesn't contain relevant information, say so explicitly.
+                Be direct and concise in your response.
+                If no relevant information is found, explain why.`,
+              },
+              {
+                role: "user",
+                content: `Context:\n${
+                  finalResult.context || finalResult.text
+                }\n\nQuestion: ${prompt}\n\n read the prompt carefully, Please provide a direct answer using ONLY the information from the context above if available and explain it. If no relevant information is found, explain why and by your own knowledge say something related to the query in shorter way.
+                Give answers in a concise manner, don't be too verbose.`,
+              },
+            ],
+            stream: true,
+            temperature: 0.3,
+          });
+
+          // Stream the response
+          for await (const chunk of completion) {
+            // Check if the request was aborted
+            if (req.signal.aborted) {
+              console.log('Request was aborted by client');
+              break;
+            }
+            
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              await writer.write(new TextEncoder().encode(content));
+            }
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('Streaming was aborted');
+          } else {
+            console.error("Error in streaming:", error);
+            await writer.write(
+              new TextEncoder().encode("Error generating response.")
+            );
+          }
+        } finally {
+          try {
+            await writer.close();
+          } catch (error) {
+            console.error('Error closing writer:', error);
+          }
+        }
+      })();
+
+      return new NextResponse(stream.readable, {
+        headers: {
+          "Content-Type": "text/plain",
+          "Transfer-Encoding": "chunked",
+        },
+      });
+    } catch (error) {
+      console.error("Error in GPT-4 selection:", error);
+      // Fallback to first valid result
+      const fallbackResult = bm25Results[0];
+      if (!fallbackResult) {
+        return NextResponse.json(
+          { error: "No valid results available" },
+          { status: 404 }
+        );
+      }
+
+      const stream = new TransformStream();
+      const writer = stream.writable.getWriter();
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: `You are TaskSensei, a helpful assistant. 
+            Use ONLY the information from the provided context to answer the query.
+            If the context doesn't contain relevant information, say so explicitly.
+            Be direct and concise in your response.`,
+          },
+          {
+            role: "user",
+            content: `Context:\n${fallbackResult.text}\n\nQuestion: ${prompt}\n\nPlease provide a direct answer using ONLY the information from the context above.`,
+          },
+        ],
+        stream: true,
+        temperature: 0.2,
+      });
+
+      // Stream the response
+      for await (const chunk of completion) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          await writer.write(new TextEncoder().encode(content));
+        }
+      }
+      await writer.close();
+
+      return new NextResponse(stream.readable, {
+        headers: {
+          "Content-Type": "text/plain",
+          "Transfer-Encoding": "chunked",
+        },
+      });
+    }
   } catch (error) {
     console.error("Processing error:", error);
     return NextResponse.json(

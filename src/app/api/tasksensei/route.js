@@ -2,12 +2,11 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { Pinecone } from "@pinecone-database/pinecone";
-import { getServerSession } from "next-auth";
+import { getAppSession } from "@/lib/auth";
 import bm25 from "wink-bm25-text-search";
 import nlp from "wink-nlp-utils";
 import { Worker } from "worker_threads";
 import path from "path";
-import { authOptions } from "@/lib/authOptions";
 import { openaiConfig, ollamaConfig, ollamaEmbeddingsUrl } from "@/lib/serverConfig";
 
 export const runtime = "nodejs";
@@ -29,7 +28,7 @@ const CHUNK_OVERLAP = 200; // Reduced overlap
 
 export async function POST(req) {
   try {
-    const session = await getServerSession({ req, ...authOptions });
+    const session = await getAppSession();
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

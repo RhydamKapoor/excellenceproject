@@ -6,8 +6,7 @@ import path from "path";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import Groq from "groq-sdk";
-import { authOptions } from "@/lib/authOptions";
-import { getServerSession } from "next-auth";
+import { getAppSession } from "@/lib/auth";
 import { groqConfig, ollamaConfig, ollamaEmbeddingsUrl } from "@/lib/serverConfig";
 
 export const runtime = "nodejs";
@@ -23,7 +22,7 @@ const CHUNK_OVERLAP = 200; // Reduced overlap
 
 export async function POST(req) {
   try {
-    const session = await getServerSession({ req, ...authOptions });
+    const session = await getAppSession();
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,8 +1,16 @@
-import CredentialsProvider from "next-auth/providers/credentials";
+import CredentialsProviderModule from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/utils/db";
-import GoogleProvider from "next-auth/providers/google";
-import SlackProvider from "next-auth/providers/slack";
+import GoogleProviderModule from "next-auth/providers/google";
+import SlackProviderModule from "next-auth/providers/slack";
+
+function resolveProvider(moduleExport) {
+  return moduleExport?.default ?? moduleExport;
+}
+
+const CredentialsProvider = resolveProvider(CredentialsProviderModule);
+const GoogleProvider = resolveProvider(GoogleProviderModule);
+const SlackProvider = resolveProvider(SlackProviderModule);
 
 export const authOptions = {
   session: {

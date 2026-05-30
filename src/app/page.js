@@ -1,10 +1,9 @@
 import Image from "next/image";
 import Landing from "./components/Landing";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { getAppSession } from "@/lib/auth";
 
 export default async function Home() {
-  const session = await getServerSession(authOptions);
+  const session = await getAppSession();
 
   return (
     <main className="landing flex min-h-screen w-full flex-col items-center justify-center p-6 md:flex-row md:p-10 lg:gap-8">

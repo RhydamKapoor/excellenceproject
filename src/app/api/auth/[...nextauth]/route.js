@@ -1,15 +1,10 @@
-import NextAuth from "next-auth";
+import NextAuthModule from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req, ctx) {
-  const handler = NextAuth(authOptions);
-  return handler(req, ctx);
-}
+const NextAuth = NextAuthModule.default ?? NextAuthModule;
+const handler = NextAuth(authOptions);
 
-export async function POST(req, ctx) {
-  const handler = NextAuth(authOptions);
-  return handler(req, ctx);
-}
+export { handler as GET, handler as POST };

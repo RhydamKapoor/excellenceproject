@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
+import { getAppSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/utils/db";
 import bcrypt from "bcryptjs";
 
@@ -10,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function PUT(req) {
   try {
-    const session = await getServerSession({ req, ...authOptions });
+    const session = await getAppSession();
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

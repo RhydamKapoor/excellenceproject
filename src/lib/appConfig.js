@@ -8,12 +8,3 @@ export function getAppUrl() {
   if (typeof window !== "undefined") return window.location.origin;
   return "";
 }
-
-export function getSocketUrl() {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  const appUrl = getAppUrl();
-  if (appUrl) return appUrl;
-  return `http://${process.env.HOSTNAME || "localhost"}:${process.env.PORT || "3000"}`;
-}

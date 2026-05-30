@@ -42,7 +42,3 @@ export const seedConfig = {
   adminEmail: process.env.SEED_ADMIN_EMAIL || "admin@example.com",
   adminPassword: process.env.SEED_ADMIN_PASSWORD,
 };
-
-export function getSocketCorsOrigin() {
-  return process.env.SOCKET_CORS_ORIGIN || getServerAppUrl();
-}

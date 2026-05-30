@@ -1,10 +1,14 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/utils/db";
 
-export async function GET() {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession({ req, ...authOptions });
+
     if (!session || session.user.role !== "MANAGER") {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }

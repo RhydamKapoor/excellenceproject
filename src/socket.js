@@ -1,9 +1,9 @@
 "use client";
 
 import { io } from "socket.io-client";
+import { getSocketUrl } from "@/lib/appConfig";
 
-// Add connection options and error handling
-export const socket = io("http://localhost:3000", {
+export const socket = io(getSocketUrl(), {
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,

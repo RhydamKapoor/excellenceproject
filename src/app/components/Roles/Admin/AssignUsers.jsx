@@ -1,188 +1,339 @@
-'use client'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import axios from "axios";
-import { Check, Grip, GripHorizontal, GripVertical, Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import toast from "react-hot-toast";
+"use client";
 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import axios from "axios";
+import {
+  Briefcase,
+  Mail,
+  UserMinus,
+  UserPlus,
+  Users,
+  UsersRound,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 export default function AssignUsers() {
   const [users, setUsers] = useState([]);
-  const [addDetail, setAddDetail] = useState(false);
-  const [selectedManager, setSelectedManager] = useState(null);
-  const {register, handleSubmit, setValue, watch} = useForm()
+  const [selectedManagerId, setSelectedManagerId] = useState(null);
+  const [assignUserId, setAssignUserId] = useState("");
 
-  const fetchUsers = async () => {
-    const toastId = toast.loading(`Fetching...`);
-    try {
-      const { data } = await axios.get("/api/admin/get-users");
-      toast.success(`Employees fetched!`, { id: toastId });
-      // console.log(data);
-      setUsers(data);
-    } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to fetch users", {
-        id: toastId,
-      });
-    }
-  }
-  const managersDetail = users?.filter((user) => user.role === "MANAGER");
-  const usersDetail = users?.filter((user) => user.role === "USER");
-
-  const addUser = async(managerId) => {
-    const userId = watch("userId");
-    if(!userId){
-      toast(`Please select any user!`, {
-        icon: "⚠️"
-      })
-      return;
-    }
-    const toastId = toast.loading(`Assigning user...`)
-    try {
-      const res = await axios.post("/api/admin/assign-user", {userId, managerId});
-      if(res.status === 200){
-        
-        toast.success(`User assigned!`, { id: toastId})
-        setAddDetail(false)
-        fetchUsers();
-        setValue("userId", "")
-      }else{
-        toast.error("Failed to assign user", {
-        id: toastId,
-      });
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error?.response?.data?.message, {id: toastId})
-    }
-    
-  }
-
-  const removeUser = async(userId, managerId) => {
-    const toastId = toast.loading(`Removing user...`)
-    try {
-      const res = await axios.post("/api/admin/remove-user", {userId, managerId});
-      if(res.status === 200){
-        toast.success(`User removed!`, { id: toastId})
-        fetchUsers();
-      }else{
-        toast.error("Failed to assign user", {
-        id: toastId,
-      });
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error?.response?.data?.message, {id: toastId})
-    }
-  }
+  const managers = users.filter((user) => user.role === "MANAGER");
+  const employees = users.filter((user) => user.role === "USER");
+  const unassignedEmployees = employees.filter((user) => !user.managerId);
+  const selectedManager = managers.find((m) => m.id === selectedManagerId);
+  const assignedToManager = employees.filter(
+    (user) => user.managerId === selectedManagerId
+  );
 
   useEffect(() => {
-    fetchUsers()
+    fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (selectedManagerId) return;
+    const firstManager = users.find((u) => u.role === "MANAGER");
+    if (firstManager) setSelectedManagerId(firstManager.id);
+  }, [users, selectedManagerId]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await axios.get("/api/admin/get-users");
+      setUsers(data ?? []);
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Failed to fetch users");
+    }
+  };
+
+  const assignUser = async () => {
+    if (!selectedManagerId) {
+      toast.error("Select a manager first");
+      return;
+    }
+    if (!assignUserId) {
+      toast.error("Select an employee to assign");
+      return;
+    }
+
+    const toastId = toast.loading("Assigning employee...");
+    try {
+      const res = await axios.post("/api/admin/assign-user", {
+        userId: assignUserId,
+        managerId: selectedManagerId,
+      });
+      if (res.status === 200) {
+        toast.success("Employee assigned successfully", { id: toastId });
+        setAssignUserId("");
+        fetchUsers();
+      } else {
+        toast.error("Failed to assign employee", { id: toastId });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to assign employee", {
+        id: toastId,
+      });
+    }
+  };
+
+  const removeUser = async (userId) => {
+    const toastId = toast.loading("Removing employee...");
+    try {
+      const res = await axios.post("/api/admin/remove-user", {
+        userId,
+        managerId: selectedManagerId,
+      });
+      if (res.status === 200) {
+        toast.success("Employee removed from team", { id: toastId });
+        fetchUsers();
+      } else {
+        toast.error("Failed to remove employee", { id: toastId });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to remove employee", {
+        id: toastId,
+      });
+    }
+  };
+
   return (
-    <div className="flex flex-col p-5 gap-y-10 w-full">
-      <div className="flex flex-col overflow-x-auto w-full">
-        <div className="flex flex-col gap-y-7 w-full min-w-[580px]">
-          <ul className="flex w-full font-bold text-lg text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full">
-            <li className="w-1/3">Manager</li>
-            <li className="w-1/3">Assigned Users</li>
-            <li className="w-1/3">Action</li>
-          </ul>
-          <div className="flex flex-col gap-y-3 text-sm">
-            {managersDetail?.map((manager) => (
-              <ul key={manager.id} className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full">
-                <li className="w-1/3 capitalize">
-                  {manager.firstName} {manager.lastName}
-                </li>
-                <li className="w-1/3">
-                  {usersDetail.filter(user => user.managerId === manager.id).length || 0}
-                </li>
-                <li className="w-1/3 flex justify-center">
-                  <Dialog>
-                    <DialogTrigger className="p-1 bg-[var(--dark-btn)] rounded-full text-white cursor-pointer flex w-1/3 max-lg:w-2/3 max-md:w-full items-center justify-center gap-x-1">
-                      <Grip size={18} strokeWidth={1.5}/>
-                      Manage users
-                    </DialogTrigger>
-                    <DialogContent className="w-2/3 max-lg:w-2/3 max-md:w-full flex max-lg:flex-col *:w-1/2 max-lg:*:w-full h-3/4 max-lg:h-[90vh] overflow-y-auto p-0">
-                      <div className=" lg:sticky max-lg:relative top-0 flex flex-col gap-y-6 shadow-lg py-7">
-                        
-                        <DialogHeader className="items-center pb-4">
-                          <DialogTitle className="text-[var(--specialtext)] text-lg">
-                            <span className="relative flex items-center text-3xl">
-                              Assign
-                            </span>
-                          </DialogTitle>
-                          <DialogDescription>
-                            Select the employees you want to assign
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <div className="flex flex-col gap-y-5">
-                          <div className="flex flex-col gap-y-4 items-center">
-                              <div className="flex flex-col gap-y-5 text-center w-full *:w-1/2 text-orange-500 font-semibold text-base items-center justify-center">
-                                <div className="flex justify-center text-[var(--specialtext)] font-light">
-                                  <Select
-                                    onValueChange={(value) => setValue("userId", value)}
-                                  >
-                                    <SelectTrigger className="cursor-pointer w-full max-sm:w-full py-1 text-center rounded-md border border-slate-500 text-base text-[var(--withdarkinnertext)] capitalize">
-                                      <SelectValue placeholder="Employees" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectGroup className="capitalize">
-                                      {
-                                        usersDetail.filter(user => !user.managerId).map((user, i) => (
-                                          <SelectItem value={user.id} key={i} className="cursor-pointer">
-                                            {user.firstName + " " + user.lastName}
-                                          </SelectItem>
-                                        ))
-                                      }
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <p className="flex justify-center gap-x-2 *:cursor-pointer w-full *:w-1/2">
-                                  <span onClick={() => addUser(manager.id)} className="flex justify-center bg-green-400/40 text-green-600 rounded-full py-1"><Check className="p-1 rounded-full" size={26}/></span>
-                                </p>
-                              </div>
-                            
-                          </div>
-                        </div>
-                      </div>
-                      <div className=" flex flex-col gap-y-2 h-full overflow-y-auto py-7">
-                        <DialogHeader className="items-center pb-4">
-                          <DialogTitle className="text-[var(--specialtext)] text-lg">
-                            <span className="relative flex items-center text-xl">
-                              All assigned employees 
-                            </span>
-                          </DialogTitle>
-                          <DialogDescription>
-                            Here is the list of users assigned to <span className="capitalize font-semibold">{`${manager?.firstName} ${manager?.lastName}`}</span>
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col gap-y-5 overflow-y-auto h-full pb-2">
-                          
-                        {usersDetail.filter(user => user.managerId === manager.id).length > 0 ?
-                              (usersDetail.filter(user => user.managerId === manager.id).map((user) => (
-                                <div key={user.id} className="flex w-full *:w-1/2 text-gray-600 font-semibold text-base items-center">
-                                  <p className="capitalize text-start pl-16">{user?.firstName + " " + user?.lastName}</p>
-                                  <span className="flex items-center justify-center">
-                                    <button onClick={() => removeUser(user.id, manager.id)} className="bg-[var(--dark-btn)] text-slate-100 rounded-full cursor-pointer text-xs py-1 px-4" >Remove</button>
-                                  </span>
-                                </div>
-                              ))) : (
-                                !addDetail && <div className="flex justify-center items-center text-red-700 font-semibold h-2/3">No user assigned!</div>
-                              )
-                            }
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </li>
-              </ul>
-            ))}
+    <div className="flex flex-col gap-6">
+      {/* Summary stats */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Managers</p>
+            <p className="text-xl font-bold text-foreground">{managers.length}</p>
           </div>
+          <Briefcase className="size-5 text-primary" />
+        </div>
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Unassigned employees</p>
+            <p className="text-xl font-bold text-foreground">{unassignedEmployees.length}</p>
+          </div>
+          <Users className="size-5 text-amber-600" />
+        </div>
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Total employees</p>
+            <p className="text-xl font-bold text-foreground">{employees.length}</p>
+          </div>
+          <UsersRound className="size-5 text-violet-500" />
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5 lg:items-start">
+        {/* Manager list */}
+        <div className="card-surface flex max-h-[560px] flex-col overflow-hidden lg:col-span-2">
+          <div className="shrink-0 border-b border-border px-5 py-4">
+            <h2 className="font-semibold text-foreground">Managers</h2>
+            <p className="text-xs text-muted-foreground">
+              Select a manager to manage their team
+            </p>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col divide-y divide-border">
+            {managers.length > 0 ? (
+              managers.map((manager) => {
+                const teamCount = employees.filter(
+                  (u) => u.managerId === manager.id
+                ).length;
+                const isSelected = selectedManagerId === manager.id;
+
+                return (
+                  <button
+                    key={manager.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedManagerId(manager.id);
+                      setAssignUserId("");
+                    }}
+                    className={`flex w-full cursor-pointer items-start gap-3 px-5 py-4 text-left transition-colors ${
+                      isSelected
+                        ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
+                        : "hover:bg-muted/40"
+                    }`}
+                  >
+                    <span
+                      className={`uppercase flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {manager.firstName?.[0]}
+                      {manager.lastName?.[0]}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium capitalize text-foreground">
+                        {manager.firstName} {manager.lastName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {manager.email}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        isSelected
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {teamCount} {teamCount === 1 ? "member" : "members"}
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+                No managers found. Promote a user to manager first.
+              </div>
+            )}
+            </div>
+          </div>
+        </div>
+
+        {/* Team management panel */}
+        <div className="card-surface flex max-h-[560px] flex-col overflow-hidden lg:col-span-3">
+          {selectedManager ? (
+            <>
+              <div className="shrink-0 border-b border-border px-6 py-4">
+                <h2 className="font-semibold capitalize text-foreground">
+                  {selectedManager.firstName} {selectedManager.lastName}&apos;s team
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Assign unassigned employees or remove existing team members
+                </p>
+              </div>
+
+              {/* Assign form */}
+              <div className="shrink-0 border-b border-border bg-muted/20 px-6 py-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <UserPlus className="size-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Add employee to team
+                  </h3>
+                </div>
+
+                {unassignedEmployees.length > 0 ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Unassigned employee
+                      </label>
+                      <Select value={assignUserId} onValueChange={setAssignUserId}>
+                        <SelectTrigger className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm shadow-none">
+                          <SelectValue placeholder="Choose an employee..." />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg">
+                          <SelectGroup>
+                            {unassignedEmployees.map((user) => (
+                              <SelectItem key={user.id} value={user.id} className="cursor-pointer">
+                                <span className="capitalize">{user.firstName} {user.lastName}</span> <span className="text-xs text-muted-foreground">({user.email})</span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      className="h-10 shrink-0 rounded-xl px-6 font-semibold sm:w-auto"
+                      onClick={assignUser}
+                    >
+                      Assign to team
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    All employees are currently assigned to a manager.
+                  </p>
+                )}
+              </div>
+
+              {/* Team list */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Current team members
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {assignedToManager.length} assigned
+                  </span>
+                </div>
+
+                {assignedToManager.length > 0 ? (
+                  <div className="overflow-x-auto rounded-xl border border-border">
+                    <div className="min-w-[480px]">
+                      <div className="grid grid-cols-[1.2fr_1.5fr_0.6fr] gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span>Name</span>
+                        <span>Email</span>
+                        <span className="text-center">Action</span>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {assignedToManager.map((user) => (
+                          <div
+                            key={user.id}
+                            className="grid grid-cols-[1.2fr_1.5fr_0.6fr] items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/30"
+                          >
+                            <span className="truncate font-medium capitalize text-foreground">
+                              {user.firstName} {user.lastName}
+                            </span>
+                            <span className="flex items-center gap-1.5 truncate text-muted-foreground">
+                              <Mail className="size-3.5 shrink-0" />
+                              {user.email}
+                            </span>
+                            <div className="flex justify-center">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10"
+                                onClick={() => removeUser(user.id)}
+                              >
+                                <UserMinus className="size-3.5" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border px-6 py-12 text-center">
+                    <Users className="size-9 text-muted-foreground/40" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      No employees assigned yet
+                    </p>
+                    <p className="max-w-xs text-xs text-muted-foreground">
+                      Use the form above to add unassigned employees to this
+                      manager&apos;s team.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+              <Briefcase className="size-10 text-muted-foreground/40" />
+              <p className="text-sm font-medium text-muted-foreground">
+                Select a manager
+              </p>
+              <p className="max-w-xs text-xs text-muted-foreground">
+                Choose a manager from the list to view and manage their team.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

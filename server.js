@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
+import { getSocketCorsOrigin } from "./src/lib/serverConfig.js";
 
 
 const dev = process.env.NODE_ENV !== "production";
@@ -25,7 +26,7 @@ app.prepare().then(() => {
   // Initialize Socket.IO
  const io = new Server(server, {
     cors: {
-      origin: "http://localhost:3000",
+      origin: getSocketCorsOrigin(),
       methods: ["GET", "POST"],
       credentials: true,
     },

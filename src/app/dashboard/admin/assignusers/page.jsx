@@ -2,11 +2,14 @@ import AssignUsers from "@/app/components/Roles/Admin/AssignUsers";
 
 export default function AssignUserPage() {
   return (
-    <main className="flex flex-col gap-y-5 items-center p-5 max-[400px]:py-5 max-[400px]:px-2 h-full"> 
-      <div className="flex justify-center">
-        <h1 className="text-2xl text-[var(--lightText)] font-bold flex gap-x-3 items-center max-[400px]:text-xl">Assigning employees to manager</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="page-header">Assign employees</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Select a manager and assign employees to their team.
+        </p>
       </div>
       <AssignUsers />
-    </main>
-  )
+    </div>
+  );
 }

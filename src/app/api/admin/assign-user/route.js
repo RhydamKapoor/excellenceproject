@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/utils/db"; // Assuming this is your Prisma client instance
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req) {
   try {
     const { userId, managerId } = await req.json();

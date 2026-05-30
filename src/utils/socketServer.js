@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { getSocketCorsOrigin } from "@/lib/serverConfig";
 
 let io;
 
@@ -6,7 +7,7 @@ export const initSocket = (server) => {
   if (!io) {
     io = new Server(server, {
       cors: {
-        origin: "*",
+        origin: getSocketCorsOrigin(),
         methods: ["GET", "POST"],
       },
     });

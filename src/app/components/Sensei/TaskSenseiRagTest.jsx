@@ -3,8 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square, Search, Database } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
-import { createWorker } from "tesseract.js";
-import pdfToText from "react-pdftotext";
 
 export default function TaskSenseiComp({isAnimate}) {
   const [prompt, setPrompt] = useState("");
@@ -226,7 +224,7 @@ export default function TaskSenseiComp({isAnimate}) {
       setIsLoading(true);
       
       try {
-        // Read the file as ArrayBuffer
+        const { default: pdfToText } = await import("react-pdftotext");
         const text = await pdfToText(file);
         
         setExtractedText(text);
@@ -244,6 +242,7 @@ export default function TaskSenseiComp({isAnimate}) {
     setIsLoading(true);
     
     try {
+      const { createWorker } = await import("tesseract.js");
       const worker = await createWorker();
 
       const {

@@ -1,12 +1,24 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Copy, Check, Paperclip, X, FileText, Folder, Square, Search, Database } from "lucide-react";
+import {
+  Send,
+  Copy,
+  Check,
+  Paperclip,
+  X,
+  FileText,
+  Folder,
+  Square,
+  Database,
+  Sparkles,
+  Bot,
+  User,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
-import { createWorker } from "tesseract.js";
-import pdfToText from "react-pdftotext";
+import { Button } from "@/components/ui/button";
 
-export default function TaskSenseiComp({isAnimate}) {
+export default function TaskSenseiComp({ isAnimate = false }) {
   const [prompt, setPrompt] = useState("");
   const [isVectorSearch, setIsVectorSearch] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -244,7 +256,7 @@ export default function TaskSenseiComp({isAnimate}) {
       setIsLoading(true);
       
       try {
-        // Read the file as ArrayBuffer
+        const { default: pdfToText } = await import("react-pdftotext");
         const text = await pdfToText(file);
         
         setExtractedText(text);
@@ -262,6 +274,7 @@ export default function TaskSenseiComp({isAnimate}) {
     setIsLoading(true);
     
     try {
+      const { createWorker } = await import("tesseract.js");
       const worker = await createWorker();
 
       const {
@@ -325,26 +338,35 @@ export default function TaskSenseiComp({isAnimate}) {
         const code = firstLineEnd > 0 ? codeContent.substring(firstLineEnd + 1) : codeContent;
         
         return (
-          <div key={index} className="my-2">
-            <div className="bg-[var(--dark-btn)] text-slate-100 p-2 rounded-t-lg text-sm font-mono capitalize flex justify-between items-center">
-              <span>{language || 'code'}</span>
-              <button 
+          <div key={index} className="my-2 overflow-hidden rounded-xl border border-border">
+            <div className="flex items-center justify-between bg-primary px-3 py-2 text-xs font-medium capitalize text-primary-foreground">
+              <span>{language || "code"}</span>
+              <button
+                type="button"
                 onClick={() => copyToClipboard(code, index)}
-                className="text-slate-100 hover:text-white transition-colors"
+                className="cursor-pointer rounded-lg p-1 transition-colors hover:bg-primary-foreground/20"
                 title="Copy code"
               >
-                {copiedIndex === index ? <Check size={16} /> : <Copy size={16} className="cursor-pointer"/>}
+                {copiedIndex === index ? <Check size={14} /> : <Copy size={14} />}
               </button>
             </div>
-            <pre className="border border-[var(--dark-btn)] bg-[var(--ourbackground)] text-slate-800 rounded-b-lg pt-2 overflow-x-auto font-mono text-sm p-2">
-              <code className="font-(family-name:--font-roboto)">{code}</code>
+            <pre className="overflow-x-auto bg-muted/50 p-3 font-mono text-xs text-foreground">
+              <code>{code}</code>
             </pre>
           </div>
         );
       }
-      
-      // Regular text
-      return <p key={index} className={`whitespace-pre-wrap ${content === "Thinking..." && "animate-pulse"}`}>{part}</p>;
+
+      return (
+        <p
+          key={index}
+          className={`whitespace-pre-wrap text-sm leading-relaxed ${
+            content === "Thinking..." ? "animate-pulse text-muted-foreground" : ""
+          }`}
+        >
+          {part}
+        </p>
+      );
     });
     // return <p className="whitespace-pre-wrap">{content}</p>;
   };
@@ -360,171 +382,239 @@ export default function TaskSenseiComp({isAnimate}) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   useEffect(() => {
-    selectedFile ? setIsVectorSearch(true) : setIsVectorSearch(false)
+    selectedFile ? setIsVectorSearch(true) : setIsVectorSearch(false);
   }, [selectedFile]);
-  return (
-    <motion.div className="flex flex-col justify-center rounded-lg overflow-hidden h-full" 
-    initial={{width: isAnimate ? "0vw" : "100vw"}}
-    animate={{ 
-      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" , width: isMobile ? "90vw" : "60vw"
-    }} 
-    transition={{duration: 0.8, delay: 0.1, type: "spring", boxShadow: { delay: 1}}}>
-      {/* Chat header */}
-      <div className="bg-[var(--dark-btn)] text-white p-4  rounded-t-lg">
-        <motion.h2 initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className={` font-semibold ${isAnimate ? "text-xl  max-sm:text-lg" : "text-lg"}`}>TaskSensei</motion.h2>
-        <motion.p initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.3, duration: 0.4}} className={` opacity-80  ${isAnimate ? "text-sm  max-sm:text-xs" : "text-xs"} `}>Ask me anything about task management</motion.p>
-      </div>
-      
-      {/* Chat messages */}
-      <motion.div className="h-full overflow-y-auto space-y-4 sensei_scroll p-4" initial={{height: isAnimate ? "0%" : "100%"}} animate={{height: isAnimate ? "100%" : "100%"}} transition={{delay: 0.8, duration: 0.4}}>
+
+  const isModal = !isAnimate;
+
+  const suggestions = [
+    "How do I prioritize my tasks?",
+    "Break down a large project",
+    "Upload a doc and ask about it",
+  ];
+
+  const handleSuggestion = (text) => setPrompt(text);
+
+  const chatContent = (
+    <>
+      {/* Messages */}
+      <div className="sensei_scroll min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 ? (
-          <motion.div className="flex flex-col gap-y-5 items-center justify-center text-gray-500 h-full m-0" initial={{opacity: 0}} animate={{opacity: 1}} transition={{delay: 0.8, duration: 0.5}}>
-            <p className={`text-center font-semibold  ${isAnimate ? "text-xl  max-sm:text-lg" : "text-lg"}`}>Ask TaskSensei for help with your tasks</p>
-            <ul className={`list-disc  gap-y-1 flex flex-col text-slate-400 ${isAnimate ? "text-sm  max-sm:text-xs" : "text-xs"}`}>
-              <li>Upload a document or image for analysis</li>
-              <li>Ask any query for the document</li>
-              <li>Use file name to have more chances to get a relevant response</li>
-              <li>What's the best way to break down a large project?</li>
-            </ul>
-          </motion.div>
-          
-        ) : (
-          messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] max-[450px]:text-sm p-3 rounded-lg ${
-                  message.role === "user"
-                    ? "bg-[var(--dark-btn)] text-white"
-                    : "bg-gray-100 text-gray-800"
-                }`}
-              >
-                {message.role === "user" ? (
-                  <div>
-                    <p className={`whitespace-pre-wrap`}>{message.content}</p>
-                    {message.file && (
-                      <div className="mt-2 p-2 bg-white text-slate-800 bg-opacity-20 rounded flex items-center">
-                        <Paperclip size={16} className="mr-2" />
-                        <span className="text-sm truncate">{prevName[index/2]}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    {formatMessage(message.content.response)}
-                    {message.isStreaming && !message.isThinking && (
-                      <span className="inline-block w-1 h-4 ml-1 animate-pulse bg-gray-700"></span>
-                    )}
-                  </div>
-                )}
-              </div>
+          <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-4 px-2 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Sparkles className="size-6" />
             </div>
-          ))
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">How can I help?</p>
+              <p className="text-xs text-muted-foreground">
+                Ask about tasks, productivity, or attach a file to analyze.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSuggestion(s)}
+                  className="cursor-pointer rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-2 ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              >
+                <div
+                  className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ${
+                    message.role === "user"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {message.role === "user" ? <User className="size-3.5" /> : <Bot className="size-3.5" />}
+                </div>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    message.role === "user"
+                      ? "rounded-tr-md bg-primary text-primary-foreground"
+                      : "rounded-tl-md border border-border bg-muted/60 text-foreground"
+                  }`}
+                >
+                  {message.role === "user" ? (
+                    <div>
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      {message.file && (
+                        <div className="mt-2 flex items-center gap-2 rounded-lg bg-primary-foreground/10 px-2 py-1.5">
+                          <Paperclip className="size-3.5 shrink-0" />
+                          <span className="truncate text-xs opacity-90">{prevName[index / 2]}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      {formatMessage(message.content.response)}
+                      {message.isStreaming && !message.isThinking && (
+                        <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary" />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         <div ref={messagesEndRef} />
-      </motion.div>
-      
-      {/* File Preview */}
-      {filePreview && (
-        <div className="relative mt-2 p-1 border rounded-md bg-gray-50 flex items-center">
-          {filePreview === 'pdf' && (
-            <div className="flex items-center p-2">
-              <div className="text-center flex items-center gap-x-2">
-                <Folder size={20} color="red"/>
-                <p className="text-sm text-gray-600">{selectedFile.name}</p>
-              </div>
-            </div>
-          ) }
-          {selectedFile.type === 'text/plain' && (
-            <div className="flex items-center p-2">
-              <div className="text-center flex items-center gap-x-2">
-                <FileText size={20} color="blue"/>
-                <p className="text-sm text-gray-600">{selectedFile.name}</p>
-              </div>
-            </div>
-          )} {filePreview === 'image' && (
-              <div className="text-center flex items-center gap-x-2">
+      </div>
+
+      {/* File preview */}
+      {filePreview && selectedFile && (
+        <div className="mx-4 mb-2 flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2">
+          {filePreview === "pdf" && <Folder className="size-4 shrink-0 text-red-500" />}
+          {filePreview === "image" && (
             <img
               src={URL.createObjectURL(selectedFile)}
               alt="Preview"
-              className="h-12"
+              className="size-8 rounded-lg object-cover"
             />
-                <p className="text-sm text-gray-600">{selectedFile.name}</p>
-              </div>
           )}
+          {selectedFile.type === "text/plain" && (
+            <FileText className="size-4 shrink-0 text-primary" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-xs text-foreground">{selectedFile.name}</span>
           <button
+            type="button"
             onClick={removeFile}
-            className="absolute top-1/2 -translate-y-1/2 right-1 p-1 bg-gray-200 rounded-full hover:bg-gray-300"
+            className="cursor-pointer rounded-lg p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
-            <X size={16} />
+            <X className="size-4" />
           </button>
         </div>
       )}
-      
-      
-      {/* Input form */}
-      <form onSubmit={handleSubmit} className="p-4 border-t">
-        <div className="flex items-center relative">
-            <div className="absolute -left-0.5 h-full flex items-center justify-center rounded-l-lg w-10 border-r border-slate-200 group cursor-pointer" onClick={() => fileInputRef.current.click()} >
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="shrink-0 border-t border-border bg-card p-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-end gap-2">
             <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/jpeg,image/png,image/gif,application/pdf,text/plain,text/csv,text/markdown"
-                className="hidden"
-                />
-                <button
-                type="button"
-                className="text-gray-500 group-hover:text-gray-700 p-1 cursor-pointer"
-                title="Attach file"
-                >
-                <Paperclip size={20}/>
-                </button>
-            </div>
-            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/jpeg,image/png,image/gif,application/pdf,text/plain,text/csv,text/markdown"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Attach file"
+            >
+              <Paperclip className="size-4" />
+            </button>
+
+            <div className="relative min-w-0 flex-1">
+              <input
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Ask TaskSensei for help..."
-                className={`flex-1 py-2 pl-12 pr-12 pb-12 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--dark-btn)] text-slate-600 ${isAnimate ? "text-base max-sm:text-sm" : "text-sm"}`}
+                placeholder="Ask TaskSensei..."
+                className="input-field h-10 w-full pr-3 text-sm"
                 disabled={isLoading}
-            />
-            <span className="absolute bottom-2 left-13 flex justify-end">
-              <button
+              />
+            </div>
+
+            {isLoading ? (
+              <Button
                 type="button"
-                onClick={() => !selectedFile ? setIsVectorSearch(!isVectorSearch) : null}
-                className={`${isVectorSearch ? "bg-gray-700/70" : "bg-gray-700/40"} text-slate-200 px-2 py-1.5 rounded-full hover:bg-opacity-90 transition-colors text-xs flex items-center gap-2 justify-center h-fit cursor-pointer`}
+                size="icon"
+                variant="destructive"
+                className="size-10 shrink-0 rounded-xl"
+                onClick={stopGeneration}
               >
-                <Database size={12}/>
-                Vector Search
-              </button>
-            </span>
-            {
-              isLoading ? (
-                <button
-                  type="button"
-                  onClick={stopGeneration}
-                  className="bg-red-700 text-white rounded-r-lg hover:bg-opacity-90 transition-colors w-10 h-full flex items-center justify-center cursor-pointer absolute -right-0.5"
-                >
-                  <span className=" w-fit"><Square size={20} /></span>
-                </button>
-                )
-                :
-                <button
-                  type="submit"
-                  className="bg-[var(--dark-btn)] text-white rounded-r-lg hover:bg-opacity-90 transition-colors w-10 h-full flex items-center justify-center cursor-pointer absolute -right-0.5"
-                  disabled={isLoading || (!prompt.trim() && !selectedFile)}
-                >
-                  <span className="-translate-x-0.5 w-fit"><Send size={20} /></span>
-                </button>
-            }
+                <Square className="size-4 fill-current" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon"
+                className="size-10 shrink-0 rounded-xl"
+                disabled={!prompt.trim() && !selectedFile}
+              >
+                <Send className="size-4" />
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pl-12 pr-1">
+            <button
+              type="button"
+              onClick={() => !selectedFile && setIsVectorSearch(!isVectorSearch)}
+              disabled={!!selectedFile}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                isVectorSearch
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              } ${selectedFile ? "cursor-not-allowed opacity-60" : ""}`}
+            >
+              <Database className="size-3" />
+              Vector search
+            </button>
+            <span className="text-[10px] text-muted-foreground">PDF · Image · Text</span>
+          </div>
         </div>
-        
       </form>
+    </>
+  );
+
+  if (isModal) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+        {chatContent}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
+      initial={{ width: "0vw" }}
+      animate={{
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        width: isMobile ? "90vw" : "60vw",
+      }}
+      transition={{ duration: 0.8, delay: 0.1, type: "spring", boxShadow: { delay: 1 } }}
+    >
+      <div className="shrink-0 border-b border-border bg-primary px-4 py-3 text-primary-foreground">
+        <motion.h2
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="text-lg font-semibold max-sm:text-base"
+        >
+          TaskSensei
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="text-xs opacity-90"
+        >
+          Ask me anything about task management
+        </motion.p>
+      </div>
+      <motion.div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        initial={{ height: "0%" }}
+        animate={{ height: "100%" }}
+        transition={{ delay: 0.8, duration: 0.4 }}
+      >
+        {chatContent}
+      </motion.div>
     </motion.div>
   );
 }

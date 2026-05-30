@@ -1,247 +1,435 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { useForm } from "react-hook-form";
 import { useRole } from "@/context/RoleContext";
-import RowChangeRole from "./RowChangeRole";
-// import { signIn, signOut } from "next-auth/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowDown,
+  ArrowUp,
+  Mail,
+  Shield,
+  UserCog,
+  Users,
+} from "lucide-react";
+
+const ROLE_LABELS = {
+  USER: "Employee",
+  MANAGER: "Manager",
+};
+
+const ROLE_STYLES = {
+  USER: "bg-sky-500/10 text-sky-700 dark:text-sky-400",
+  MANAGER: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
+};
+
+const FILTERS = [
+  { id: "ALL", label: "All" },
+  { id: "USER", label: "Employees" },
+  { id: "MANAGER", label: "Managers" },
+];
+
+function RoleBadge({ role }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium leading-none ${
+        ROLE_STYLES[role] ?? "bg-muted text-muted-foreground"
+      }`}
+    >
+      {ROLE_LABELS[role] ?? role}
+    </span>
+  );
+}
+
+function ReplacementPersonButton({ person, selected, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(person.id)}
+      className={`flex w-full min-w-0 cursor-pointer flex-col rounded-lg border px-3 py-2 text-left transition-colors ${
+        selected
+          ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+          : "border-border bg-background hover:bg-muted/50"
+      }`}
+    >
+      <span className="truncate text-sm font-medium capitalize text-foreground">
+        {person.firstName} {person.lastName}
+      </span>
+      <span className="truncate text-xs text-muted-foreground lowercase">
+        {person.email}
+      </span>
+    </button>
+  );
+}
 
 export default function ChangeRoles() {
   const [users, setUsers] = useState([]);
-  const { watch, setValue } = useForm({
-    defaultValues: { roleOption: "changeRole" },
-  });
-  const { roleUpdated, setRoleUpdated } = useRole();
-  
+  const [filter, setFilter] = useState("ALL");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [targetRole, setTargetRole] = useState(null);
+  const [replacementId, setReplacementId] = useState("");
+  const { setRoleUpdated } = useRole();
+
   useEffect(() => {
     fetchUsers();
   }, []);
 
+  const manageableUsers = useMemo(
+    () => users.filter((user) => user.role !== "ADMIN"),
+    [users]
+  );
+
+  const employees = useMemo(
+    () => manageableUsers.filter((user) => user.role === "USER"),
+    [manageableUsers]
+  );
+
+  const managers = useMemo(
+    () => manageableUsers.filter((user) => user.role === "MANAGER"),
+    [manageableUsers]
+  );
+
+  const filteredUsers = useMemo(() => {
+    if (filter === "ALL") return manageableUsers;
+    return manageableUsers.filter((user) => user.role === filter);
+  }, [manageableUsers, filter]);
+
+  const replacementOptions = useMemo(() => {
+    if (!selectedUser) return { users: [], managers: [] };
+    return {
+      users: manageableUsers.filter((u) => u.role === "USER"),
+      managers: manageableUsers.filter(
+        (u) => u.role === "MANAGER" && u.id !== selectedUser.id
+      ),
+    };
+  }, [manageableUsers, selectedUser]);
+
   const fetchUsers = async () => {
-    const toastId = toast.loading(`Fetching...`);
     try {
       const { data } = await axios.get("/api/admin/get-users");
-      toast.success(`Have a look!`, { id: toastId });
-      setRoleUpdated(!roleUpdated);
-      setUsers(data);
+      setUsers(data ?? []);
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to fetch users", {
-        id: toastId,
-      });
+      toast.error(error.response?.data?.error || "Failed to fetch users");
     }
   };
 
-  const updateRole = async (userId, newRole) => {
-    const employeeId = watch("employeeId");
-    if (newRole === "USER" && !employeeId) {
-      toast("Please select an employee!", {icon: '⚠️'});
+  const openRoleChange = (user, newRole) => {
+    setSelectedUser(user);
+    setTargetRole(newRole);
+    setReplacementId("");
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setSelectedUser(null);
+    setTargetRole(null);
+    setReplacementId("");
+  };
+
+  const confirmRoleChange = async () => {
+    if (!selectedUser || !targetRole) return;
+
+    if (targetRole === "USER" && !replacementId) {
+      toast.error("Select who will replace this manager");
       return;
     }
-    const toastId = toast.loading(`Changing role...`);
-    try {
-      if(newRole === "MANAGER"){
-        await axios.post("/api/admin/update-role", { userId, newRole });
-      }else{
-        await axios.post("/api/admin/update-role", { userId, newRole, employeeId });
-      }
 
+    const toastId = toast.loading("Updating role...");
+    try {
+      const payload =
+        targetRole === "MANAGER"
+          ? { userId: selectedUser.id, newRole: "MANAGER" }
+          : {
+              userId: selectedUser.id,
+              newRole: "USER",
+              employeeId: replacementId,
+            };
+
+      await axios.post("/api/admin/update-role", payload);
       toast.success("Role updated successfully", { id: toastId });
-      setValue("employeeId", "")
-      setRoleUpdated(!roleUpdated);
+      setRoleUpdated((prev) => !prev);
+      closeDialog();
       fetchUsers();
     } catch (error) {
-      setValue("employeeId", "")
       toast.error(error.response?.data?.error || "Error updating role", {
         id: toastId,
       });
     }
   };
-  
+
+  const isPromote = targetRole === "MANAGER";
 
   return (
-    <div className="flex flex-col p-5 gap-y-10">
-      <div className="flex justify-center">
-        <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-          Manage Roles
-        </h2>
+    <div className="flex min-w-0 max-w-full flex-col gap-6 overflow-x-hidden">
+      {/* Summary */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Total manageable</p>
+            <p className="text-xl font-bold text-foreground">
+              {manageableUsers.length}
+            </p>
+          </div>
+          <Users className="size-5 text-primary" />
+        </div>
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Employees</p>
+            <p className="text-xl font-bold text-foreground">{employees.length}</p>
+          </div>
+          <UserCog className="size-5 text-sky-600" />
+        </div>
+        <div className="stat-pill">
+          <div>
+            <p className="text-xs text-muted-foreground">Managers</p>
+            <p className="text-xl font-bold text-foreground">{managers.length}</p>
+          </div>
+          <Shield className="size-5 text-violet-600" />
+        </div>
       </div>
-      <div className="flex flex-col overflow-x-auto">
-        <div className="flex flex-col gap-y-7 w-full min-w-[580px]">
-          <ul className="flex w-full font-bold text-lg text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full">
-            <li className="w-1/4">Name</li>
-            <li className="w-1/4">Email</li>
-            <li className="w-1/4">Role</li>
-            <li className="w-1/4">Action</li>
-          </ul>
-          <div className="flex flex-col gap-y-3 text-sm">
-          {users && (
-            <>
-              {/* First render all USER roles */}
-              {users
-                .filter((user) => user.role === "USER")
-                .map((user) => (
-                  <RowChangeRole key={user.id} user={user} users={users} updateRole={updateRole} setValue={setValue}/>
-                ))}
 
-              {/* Then render all MANAGER roles */}
-              {users
-                .filter((user) => user.role === "MANAGER")
-                .map((user) => (
-                  <RowChangeRole key={user.id} user={user} users={users} updateRole={updateRole} setValue={setValue}/>
-                ))}
-            </>
-          )}
-            {/* {users?.map(
-              (user, i) =>
-                (user.role !== "ADMIN" && user.role === "USER") && (
-                  <ul
-                    className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full"
-                    key={user.id}
+      {/* User table */}
+      <div className="card-surface flex max-h-[620px] w-full min-w-0 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-border px-5 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-foreground">Team members</h2>
+              <p className="text-xs text-muted-foreground">
+                Promote employees to manager or reassign manager duties
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map(({ id, label }) => {
+                const count =
+                  id === "ALL"
+                    ? manageableUsers.length
+                    : id === "USER"
+                      ? employees.length
+                      : managers.length;
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setFilter(id)}
+                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      filter === id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
                   >
-                    <li className="w-1/4 capitalize">
-                      {user.firstName} {user.lastName}
-                    </li>
-                    <li className="w-1/4">{user.email}</li>
-                    <li className="w-1/4 capitalize">
-                      {user.role.toLowerCase()}
-                    </li>
-                    <li className="w-1/4">
-                      <span className="flex w-full gap-x-6 justify-center items-center">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="p-1 bg-[var(--dark-btn)] rounded-full text-white cursor-pointer flex w-1/2 max-lg:w-2/3 max-md:w-full items-center justify-center gap-x-1">
-                              <ClipboardPen size={18} strokeWidth={1.5} />
-                              Change role
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className={`justify-items-center gap-y-8`}>
-                            
-                            <AlertDialogHeader
-                              className={`items-center gap-y-2`}
-                            >
-                              <AlertDialogTitle
-                                className={`text-[var(--specialtext)] capitalize text-xl`}
-                              >
-                                Change role
-                              </AlertDialogTitle>
-                              {
-                              user.role === "USER" ?
-                              <AlertDialogDescription>
-                                You are promoting the user to manager!
-                              </AlertDialogDescription> :
-                              <AlertDialogDescription className={`hidden`}></AlertDialogDescription>
-                              }
-                            </AlertDialogHeader>
-                            {
-                              user.role === "MANAGER" &&
-                              <div className="flex flex-col gap-y-3 w-full items-center ">
-                                <Select 
-                                  onValueChange={(value) => setValue("employeeId", value)}
-                                >
-                                  <SelectTrigger className="cursor-pointer w-1/2 py-1 text-center rounded-md border border-orange-700 text-sm text-[var(--withdarkinnertext)] capitalize">
-                                    <SelectValue placeholder="Employees" />
-                                  </SelectTrigger>
-                                  <SelectContent side="bottom" align="center">
-                                    <SelectGroup className="capitalize">
-                                      <SelectLabel className={`text-[var(--specialtext)] text-base font-bold`}>Users</SelectLabel>
-                                    {
-                                      users.map((detail) => (
-                                        (detail.role !== "ADMIN" && detail.role === "USER") && (
-                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2 text-sm text-slate-600`}>
-                                            {detail.firstName + " " + detail.lastName}
-                                          </SelectItem>
-                                        )
-                                      ))
-                                    }
-                                    </SelectGroup>
+                    {label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-                                    <SelectGroup className="capitalize">
-                                      <SelectLabel className={`text-[var(--specialtext)] text-base font-bold`}>Managers</SelectLabel>
-                                    {
-                                      users.map((detail) => (
-                                        (detail.role !== "ADMIN" && detail.role === "MANAGER") && (
-                                          <SelectItem key={detail.id} value={detail.id} className={`cursor-pointer capitalize flex gap-x-2 text-sm text-slate-600`}>
-                                            {detail.firstName + " " + detail.lastName}
-                                          </SelectItem>
-                                        )
-                                      ))
-                                    }
-                                    </SelectGroup>
-                                  </SelectContent>
-                                </Select>
-                                <p className="text-sm text-slate-500 w-2/3 text-center">Selected employee will take place of this manager</p>
-                              </div>
-                            }
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
+          <div className="w-full min-w-[720px]">
+            <div className="grid grid-cols-[1.2fr_1.4fr_0.7fr_0.9fr] gap-3 border-b border-border bg-muted/40 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Name</span>
+              <span>Email</span>
+              <span className="flex items-center">Role</span>
+              <span className="text-center">Action</span>
+            </div>
 
-                            <AlertDialogFooter
-                              className={`flex min-[450px]:flex-row justify-center gap-x-6 *:w-1/3 max-[450px]:*:w-full items-center *:cursor-pointer w-full`}
-                            >
-                              <AlertDialogCancel className={` cursor-pointer`}>
-                                Cancel
-                              </AlertDialogCancel>
-                              {
-                                <AlertDialogAction
-                                className={`bg-[var(--dark-btn)]/80 hover:bg-[var(--dark-btn)]`}
-                                onClick={() =>
-                                  updateRole(
-                                    user.id,
-                                    user.role === "USER" ? "MANAGER" : "USER"
-                                  )
-                                }
-                                >
-                                  Change role
-                                </AlertDialogAction>
-                              }
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+            {filteredUsers.length > 0 ? (
+              <div className="divide-y divide-border">
+                {filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="grid grid-cols-[1.2fr_1.4fr_0.7fr_0.9fr] items-center gap-3 px-5 py-3.5 text-sm transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold uppercase text-muted-foreground">
+                        {user.firstName?.[0]}
+                        {user.lastName?.[0]}
                       </span>
-                    </li>
-                  </ul>
-                )
-            )} */}
+                      <span className="truncate font-medium capitalize text-foreground">
+                        {user.firstName} {user.lastName}
+                      </span>
+                    </div>
+
+                    <span className="flex min-w-0 items-center gap-1.5 truncate text-muted-foreground">
+                      <Mail className="size-3.5 shrink-0" />
+                      {user.email}
+                    </span>
+
+                    <div className="flex items-center">
+                      <RoleBadge role={user.role} />
+                    </div>
+
+                    <div className="flex justify-center">
+                      {user.role === "USER" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 rounded-lg"
+                          onClick={() => openRoleChange(user, "MANAGER")}
+                        >
+                          <ArrowUp className="size-3.5" />
+                          Promote
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 rounded-lg"
+                          onClick={() => openRoleChange(user, "USER")}
+                        >
+                          <ArrowDown className="size-3.5" />
+                          Demote
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+                <Users className="size-9 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  No users in this view
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* <table className="w-full border-collapse border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border p-2">Name</th>
-            <th className="border p-2">Email</th>
-            <th className="border p-2">Role</th>
-            <th className="border p-2">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user._id} className="text-center">
-              <td className="border p-2">
-                {user.firstName} {user.lastName}
-              </td>
-              <td className="border p-2">{user.email}</td>
-              <td className="border p-2">{user.role}</td>
-              <td className="border p-2">
-                {user.role !== "ADMIN" && (
-                  <button
-                    className="px-3 py-1 bg-blue-500 text-white rounded"
-                    onClick={() =>
-                      updateRole(
-                        user._id,
-                        user.role === "USER" ? "MANAGER" : "USER"
-                      )
-                    }
-                    disabled={loading}
-                  >
-                    {user.role === "USER" ? "Make Manager" : "Make User"}
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table> */}
+      {/* Role change dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl sm:w-full">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
+              <DialogHeader>
+                <DialogTitle className="text-base sm:text-lg">
+                  {isPromote ? "Promote to manager" : "Change manager to employee"}
+                </DialogTitle>
+                <DialogDescription className="text-left text-xs sm:text-sm">
+                  {selectedUser && (
+                    <>
+                      {isPromote ? (
+                        <>
+                          <span className="font-medium capitalize text-foreground">
+                            {selectedUser.firstName} {selectedUser.lastName}
+                          </span>{" "}
+                          will become a manager and can assign tasks to their team.
+                        </>
+                      ) : (
+                        <>
+                          Choose who will take over{" "}
+                          <span className="font-medium capitalize text-foreground">
+                            {selectedUser.firstName} {selectedUser.lastName}
+                          </span>
+                          &apos;s team and responsibilities.
+                        </>
+                      )}
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+          {!isPromote && (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-6">
+              <label className="shrink-0 text-xs font-medium text-muted-foreground">
+                Select replacement manager
+              </label>
+
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                {/* Employees column */}
+                <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
+                  <div className="shrink-0 border-b border-border px-3 py-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Employees
+                    </p>
+                  </div>
+                  <div className="flex max-h-[min(160px,28dvh)] flex-col gap-1.5 overflow-y-auto p-2 sm:max-h-[220px]">
+                    {replacementOptions.users.length > 0 ? (
+                      replacementOptions.users.map((person) => (
+                        <ReplacementPersonButton
+                          key={person.id}
+                          person={person}
+                          selected={replacementId === person.id}
+                          onSelect={setReplacementId}
+                        />
+                      ))
+                    ) : (
+                      <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                        No employees available
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Managers column */}
+                <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-muted/20">
+                  <div className="shrink-0 border-b border-border px-3 py-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Managers
+                    </p>
+                  </div>
+                  <div className="flex max-h-[min(160px,28dvh)] flex-col gap-1.5 overflow-y-auto p-2 sm:max-h-[220px]">
+                    {replacementOptions.managers.length > 0 ? (
+                      replacementOptions.managers.map((person) => (
+                        <ReplacementPersonButton
+                          key={person.id}
+                          person={person}
+                          selected={replacementId === person.id}
+                          onSelect={setReplacementId}
+                        />
+                      ))
+                    ) : (
+                      <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+                        No other managers available
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="shrink-0 text-xs text-muted-foreground">
+                Their assigned employees and tasks will move to the selected person.
+              </p>
+            </div>
+          )}
+
+            <DialogFooter className="shrink-0 gap-2 border-t border-border px-4 py-4 sm:px-6 sm:py-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-xl sm:w-auto"
+                onClick={closeDialog}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="w-full rounded-xl font-semibold sm:w-auto"
+                onClick={confirmRoleChange}
+              >
+                {isPromote ? "Confirm promotion" : "Confirm change"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

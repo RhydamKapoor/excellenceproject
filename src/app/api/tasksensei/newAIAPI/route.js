@@ -6,8 +6,12 @@ import path from "path";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import Groq from "groq-sdk";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { getServerSession } from "next-auth";
+import { groqConfig, ollamaConfig, ollamaEmbeddingsUrl } from "@/lib/serverConfig";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const pinecone = new Pinecone();
 // Constants for worker pool
@@ -19,7 +23,8 @@ const CHUNK_OVERLAP = 200; // Reduced overlap
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession({ req, ...authOptions });
+
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -44,7 +49,7 @@ export async function POST(req) {
       (async () => {
         try {
           const completion = await groqai.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: groqConfig.chatModel,
             messages: [
               {
                 role: "system",
@@ -394,11 +399,11 @@ export async function POST(req) {
     }
 
     // Step 5: Contextual Retrieval (Semantic Search)
-    const queryResponse = await fetch("http://localhost:11434/api/embeddings", {
+    const queryResponse = await fetch(ollamaEmbeddingsUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "nomic-embed-text",
+        model: ollamaConfig.embedModel,
         prompt: prompt,
       }),
     });
@@ -479,7 +484,7 @@ export async function POST(req) {
         3. ID: <id>, Text: <text>
         `;
     const reRankResponse = await groqai.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: groqConfig.chatModel,
       messages: [
         {
           role: "system",
@@ -520,7 +525,7 @@ export async function POST(req) {
     const context = reRankedDocs.map((doc) => doc.text).join("\n\n");
     const generationPrompt = `Answer the following question based on the provided context:\n\nContext:\n${context}\n\nQuestion: ${prompt}`;
     const response = await groqai.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: groqConfig.chatModel,
       messages: [
         {
           role: "system",

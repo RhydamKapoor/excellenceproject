@@ -1,225 +1,153 @@
 "use client";
+
 import axios from "axios";
-import { CircleArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, AlertCircle, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { Button } from "@/components/ui/button";
+
+const statusConfig = {
+  Pending: { icon: Clock, className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  Completed: { icon: CheckCircle2, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  Delayed: { icon: AlertCircle, className: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  Closed: { icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400" },
+};
 
 export default function UserTask() {
-  const [tasks, setTasks] = useState();
+  const [tasks, setTasks] = useState([]);
   const [taskDetail, setTaskDetail] = useState(null);
-  const { register, handleSubmit, watch } = useForm();
+  const { register, handleSubmit } = useForm();
 
-  
   const fetchUserTasks = async () => {
     try {
       const { data } = await axios.get("/api/user/get-tasks");
-
       setTasks(data);
-    } catch (error) {
-      // console.error("Error fetching tasks:", error);
+    } catch {
+      /* silent refresh */
     }
   };
 
   const SubmitTask = async (data) => {
-    const toastId = toast.loading("Processing...");
-    if(taskDetail.status === 'Pending' || taskDetail.status === 'Delayed'){
+    const toastId = toast.loading("Submitting...");
+    if (taskDetail.status === "Pending" || taskDetail.status === "Delayed") {
       try {
-        const res = await axios.post("/api/user/submit-task", {
-          ...data,
-          id: taskDetail.id,
-        });
+        const res = await axios.post("/api/user/submit-task", { ...data, id: taskDetail.id });
         if (res.status === 200) {
-          toast.success(`Task submitted`, { id: toastId });
-          setTaskDetail({ id: "", title: "" });
-        } else {
-          toast.error("Something went wrong!", { id: toastId });
+          toast.success("Task submitted", { id: toastId });
+          setTaskDetail(null);
+          fetchUserTasks();
         }
       } catch (error) {
-        console.log(error);
-        toast.error(error.response.data.message, { id: toastId });
+        toast.error(error.response?.data?.message || "Error", { id: toastId });
       }
-    }
-    else if(taskDetail.status === 'Completed'){
-      toast.success(`The task already completed!`, {id: toastId})
-    }
-    else if(taskDetail.status === 'Closed'){
-      toast.error(`The task has been closed!`, {id: toastId})
+    } else if (taskDetail.status === "Completed") {
+      toast.success("Task already completed", { id: toastId });
+    } else {
+      toast.error("Task is closed", { id: toastId });
     }
   };
 
   useEffect(() => {
     fetchUserTasks();
-  
-    const interval = setInterval(() => {
-      
-      fetchUserTasks();
-    }, 10000);
-  
+    const interval = setInterval(fetchUserTasks, 10000);
     return () => clearInterval(interval);
   }, []);
-  return (
-    <div className="flex flex-col p-5 gap-y-10">
-      {!taskDetail?.id ? (
-        <>
-          <div className="flex justify-center relative">
-            <div className="relative flex items-center">
-              <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-                Your Tasks
-              </h2>
-            </div>
+
+  if (taskDetail?.id) {
+    return (
+      <div className="flex flex-col gap-6">
+        <button
+          type="button"
+          onClick={() => setTaskDetail(null)}
+          className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> Back to tasks
+        </button>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="card-surface p-6">
+            <h2 className="page-header mb-6 text-xl">Submit report</h2>
+            <form onSubmit={handleSubmit(SubmitTask)} className="flex flex-col gap-4">
+              <div>
+                <label className="text-sm font-medium">Title</label>
+                <input className="input-field mt-1 capitalize" value={taskDetail.title} readOnly />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Message</label>
+                <textarea
+                  className="input-field mt-1 min-h-[140px] resize-none"
+                  rows={5}
+                  {...register("message")}
+                />
+              </div>
+              <Button type="submit" className="rounded-2xl">
+                {taskDetail.status === "Completed" ? "Completed" : taskDetail.status === "Closed" ? "Closed" : "Submit report"}
+              </Button>
+            </form>
           </div>
-          <div className="flex flex-col items-center">
-            {tasks?.length > 0 ? (
-              <div className="flex flex-col gap-y-7 w-full">
-                <ul className="flex w-full font-bold text-lg text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full">
-                  <li className="w-1/3">Ttile</li>
-                  <li className="w-1/3">Description</li>
-                  <li className="w-1/3">Status</li>
-                </ul>
-                <div className="flex flex-col gap-y-3 text-sm">
-                  {tasks?.map((task, i) => (
-                    <ul
-                      className="flex items-center justify-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full"
-                      key={task.id}
-                    >
-                      <li className="w-1/3 capitalize">{task.title}</li>
-                      <li className="w-1/3">{task.description}</li>
-                      <li className="w-1/3">
-                        <span
-                          className={`underline cursor-pointer ${
-                            task.status === "Pending"
-                              ? " text-yellow-700"
-                              : task.status === "Completed" ? `text-green-600` : task.status === "Delayed" ? `text-orange-600` : `text-red-600`
-                          }`}
-                          onClick={() =>
-                            setTaskDetail(task)
-                          }
-                        >
-                          {task.status}
-                        </span>
-                      </li>
-                    </ul>
-                  ))}
-                </div>
-              </div>
+
+          <div className="card-surface p-6">
+            <h2 className="page-header mb-6 text-xl">Feedback</h2>
+            {taskDetail.feedBack ? (
+              <textarea
+                className="input-field min-h-[200px] resize-none"
+                value={taskDetail.feedBack}
+                readOnly
+              />
             ) : (
-              <div className="text-slate-500">
-                You have no tasks at the moment.
-              </div>
+              <p className="rounded-2xl bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                No feedback yet from your manager.
+              </p>
             )}
           </div>
-        </>
-      ) : (
-        <div className="flex relative *:w-1/2 max-md:*:w-full max-md:flex-col *:gap-y-4 gap-y-9">
-          <span
-            className="absolute left-0 cursor-pointer"
-            onClick={() => setTaskDetail({ id: "", title: "" })}
-          >
-            <CircleArrowLeft color="#92613a" strokeWidth={1.5} size={28} />
-          </span>
+        </div>
+      </div>
+    );
+  }
 
-          {/* Submit Report Form */}
-          <div className="flex flex-col items-center">
-            <div className="flex">
-              <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-                Submit your report
-              </h2>
-            </div>
-            <div className=" rounded-xl flex flex-col p-7 w-full">
-              <form
-                onSubmit={handleSubmit(SubmitTask)}
-                className="flex flex-col gap-y-5 items-center"
-              >
-                <div className="flex flex-col relative w-full">
-                  <input
-                    type="text"
-                    id="title"
-                    className={`w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]`}
-                    value={taskDetail.title}
-                    readOnly
-                  />
-                  <label
-                    htmlFor="title"
-                    className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                      taskDetail.title &&
-                      `-translate-x-2 scale-90 -translate-y-8.5`
-                    }`}
-                  >
-                    title
-                  </label>
-                </div>
-                {/* <Textarea name={`message`} register={register} watch={watch} labelHeight={70}/> */}
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="page-header">Your tasks</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Click a status to view details and submit reports.</p>
+      </div>
 
-                <div className="relative flex flex-col w-full">
-                  <textarea
-                    id="message"
-                    className="border w-full px-5 py-2.5 rounded-lg peer text-[var(--withdarkinnertext)] resize-none outline-none"
-                    {...register("message")}
-                    spellCheck="false"
-                    rows={6.5}
-                    // required
-                  />
-                  <label
-                    htmlFor="message"
-                    className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-[94px] peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200${
-                      watch("message") &&
-                      `-translate-x-2 scale-90 -translate-y-[94px]`
-                    }`}
-                  >
-                    message
-                  </label>
-                </div>
-                <div className="flex w-full justify-center text-white">
+      {tasks?.length > 0 ? (
+        <div className="card-surface overflow-hidden">
+          <div className="hidden border-b border-border bg-muted/30 px-6 py-4 md:grid md:grid-cols-3 md:gap-4">
+            <span className="text-sm font-semibold text-muted-foreground">Title</span>
+            <span className="text-sm font-semibold text-muted-foreground">Description</span>
+            <span className="text-sm font-semibold text-muted-foreground">Status</span>
+          </div>
+          <div className="divide-y divide-border">
+            {tasks.map((task) => {
+              const cfg = statusConfig[task.status] || statusConfig.Pending;
+              const Icon = cfg.icon;
+              return (
+                <div
+                  key={task.id}
+                  className="grid gap-3 px-4 py-4 transition-colors duration-200 hover:bg-muted/30 md:grid-cols-3 md:items-center md:gap-4 md:px-6"
+                >
+                  <p className="font-medium capitalize text-foreground">{task.title}</p>
+                  <p className="text-sm text-muted-foreground md:truncate">{task.description}</p>
                   <button
-                    className={`bg-[var(--dark-btn)] w-1/2 py-1 rounded-full cursor-pointer`}
+                    type="button"
+                    onClick={() => setTaskDetail(task)}
+                    className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-transform duration-200 hover:scale-105 ${cfg.className}`}
                   >
-                    {taskDetail.status === "Completed" ? `You have completed the task` : taskDetail.status === "Closed" ? `Task is closed` : `Submit`}
+                    <Icon className="size-3.5" />
+                    {task.status}
                   </button>
                 </div>
-              </form>
-            </div>
+              );
+            })}
           </div>
-
-
-          {/* Feedback */}
-          <div className="flex flex-col items-center">
-            <div className="flex">
-              <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-                Feedback
-              </h2>
-            </div>
-              {
-                taskDetail.feedBack ? (
-                  
-                <div className=" rounded-xl flex flex-col p-7 w-full">
-                    <div className="flex flex-col relative w-full">
-                      <textarea
-                        id="feedback"
-                        className="border w-full px-5 py-5 rounded-lg peer text-[var(--withdarkinnertext)] resize-none outline-none"
-                        spellCheck="false"
-                        value={taskDetail.feedBack}
-                        rows={8}
-                        readOnly
-                      />
-                      <label
-                        htmlFor="message"
-                        className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-[127px] peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                          taskDetail.feedBack &&
-                          `-translate-x-2 scale-90 -translate-y-[127px]`
-                        }`}
-                      >
-                        Feedback
-                      </label>
-                    </div>
-                </div>
-                ) : (
-                  <div className="flex text-slate-500">
-                    No feedback received!
-                  </div>
-                )
-              }
-          </div>
+        </div>
+      ) : (
+        <div className="card-surface flex flex-col items-center justify-center p-12 text-center">
+          <Clock className="mb-4 size-12 text-muted-foreground/50" />
+          <p className="text-muted-foreground">No tasks assigned yet.</p>
         </div>
       )}
     </div>

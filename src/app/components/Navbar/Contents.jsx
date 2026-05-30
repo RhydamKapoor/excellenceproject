@@ -1,94 +1,25 @@
-'use client'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { BrainCircuit, FolderKanban, ListOrdered, ListTodo, Repeat2Icon, UserRound } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
-import Link from "next/link";
+"use client";
 
-export default function Contents({setOpen}) {
-    const { data: session } = useSession();
+import NavLinks from "./NavLinks";
+import ProfileMenu from "./ProfileMenu";
 
-    const menuItems = [
-        {
-          role: "USER",
-          links: [
-            { icon: <ListTodo size={22}/>, label: "Tasks", href: "/dashboard/user/task" },
-          ],
-        },
-        {
-          role: "ADMIN",
-          links: [
-            { icon: <UserRound size={21} />, label: "Assign employees", href: "/dashboard/admin/assignusers" },
-            { icon: <Repeat2Icon size={22}/>, label: "Manage roles", href: "/dashboard/admin/manageroles" },
-          ],
-        },
-        {
-          role: "MANAGER",
-          links: [
-            { icon: <ListOrdered size={22}/>, label: "Assign task", href: "/dashboard/manager/assigntask" },
-          ],
-        },
-    ];
-    const changeRoute = () => {
-      if(window.innerWidth < 1023){
-        setOpen(false)
-      }
-    }
+/** Mobile drawer navigation */
+export default function Contents({ setOpen }) {
   return (
-    <div className="flex h-full">
-      <ul className="flex lg:flex-row items-center flex-col lg:justify-between w-full gap-y-1 gap-x-5 px-6 max-lg:h-full font-semibold text-slate-800 ">
-        <div className="flex max-lg:flex-col gap-x-4 gap-y-2 w-full">
-          {menuItems.map(
-            ({ role, links }) =>
-              session?.user?.role === role &&
-              links.map(({icon, label, href }, i) => (
-                <Link key={i} href={href} onClick={changeRoute} className="capitalize lg:text-base text-lg flex rounded-full p-1 max-lg:text-[var(--specialtext)] items-center gap-x-1">
-                  {icon} {label}
-                </Link>
-              ))
-          )}
-          <li className="cursor-pointer max-lg:text-[var(--specialtext)] p-1">
-            <span className="flex max-lg:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <span className="capitalize flex items-center gap-x-1 text-base"><FolderKanban size={21}/> Profile</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-fit">
-                  <DropdownMenuLabel className={`capitalize flex gap-x-1 font-semibold text-[var(--specialtext)]`}>
-                    Hey, {session?.user?.firstName} {session?.user?.lastName}! 
-                    <span className="capitalize">({(session?.user?.role)?.toLowerCase()})</span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className={`cursor-pointer items-center`} asChild>
-                    <Link href={`/dashboard/editprofile`}>
-                      Your Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={`cursor-pointer text-red-600`}
-                    onClick={() => signOut()}
-                  >
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </span>
-            <span className="capitalize flex items-center gap-x-1 lg:hidden text-lg">
-            <Link href={`/dashboard/editprofile`} className="flex gap-x-1 items-center" onClick={changeRoute}>
-              <FolderKanban size={21}/> Profile
-            </Link>
-            </span>
-          </li>
+    <div className="flex min-h-0 flex-1 flex-col gap-6">
+      <section>
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Menu
+        </p>
+        <NavLinks setOpen={setOpen} mobile />
+      </section>
 
-        </div>
-      </ul>
+      <section className="mt-auto border-t border-border pt-4">
+        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Account
+        </p>
+        <ProfileMenu setOpen={setOpen} mobile />
+      </section>
     </div>
   );
 }

@@ -7,11 +7,16 @@ import bm25 from "wink-bm25-text-search";
 import nlp from "wink-nlp-utils";
 import { Worker } from "worker_threads";
 import path from "path";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
+import { openaiConfig } from "@/lib/serverConfig";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: openaiConfig.baseUrl,
+});
 const pinecone = new Pinecone();
 // Constants for worker pool
 const NUM_WORKERS = 4; // Reduced to 1 worker
@@ -24,7 +29,8 @@ const CHUNK_OVERLAP = 200; // Reduced overlap
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession({ req, ...authOptions });
+
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -49,7 +55,7 @@ export async function POST(req) {
       (async () => {
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4",
+            model: openaiConfig.chatModel,
             messages: [
               {
                 role: "system",
@@ -402,7 +408,7 @@ export async function POST(req) {
     } else {
       console.log("No vectors found, creating embedding for prompt");
       const res = await openai.embeddings.create({
-        model: "text-embedding-3-small",
+        model: openaiConfig.embedModel,
         input: prompt,
       });
       vectorEmbedding = res.data[0].embedding;
@@ -641,7 +647,7 @@ export async function POST(req) {
       `;
 
       const selectionResponse = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: openaiConfig.chatModel,
         messages: [
           {
             role: "system",
@@ -680,7 +686,7 @@ export async function POST(req) {
       (async () => {
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4",
+            model: openaiConfig.chatModel,
             messages: [
               {
                 role: "system",
@@ -754,7 +760,7 @@ export async function POST(req) {
       const writer = stream.writable.getWriter();
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4",
+        model: openaiConfig.chatModel,
         messages: [
           {
             role: "system",

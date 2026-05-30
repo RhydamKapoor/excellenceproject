@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { Server } from "socket.io";
 // import { socket } from "@/socket";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   const { userId, message } = await req.json();

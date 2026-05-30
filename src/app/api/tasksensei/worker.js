@@ -1,10 +1,15 @@
 import { parentPort } from 'worker_threads';
 import OpenAI from 'openai';
+import {
+  ollamaConfig,
+  ollamaEmbeddingsUrl,
+  ollamaGenerateUrl,
+  openaiConfig,
+} from '../../../lib/serverConfig.js';
 
-// Initialize OpenAI with proper configuration
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: 'https://api.openai.com/v1', // Explicitly set the base URL
+  baseURL: openaiConfig.baseUrl,
 });
 
 // Optimized rate limiting constants
@@ -62,11 +67,11 @@ async function createContextWithGPT4(chunk, fullText) {
             const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
             try {
-                const response = await fetch('http://localhost:11434/api/generate', {
+                const response = await fetch(ollamaGenerateUrl(), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      model: 'llama3',
+                      model: ollamaConfig.generateModel,
                       prompt: prompt,
                       stream: false,
                     }),
@@ -110,11 +115,11 @@ async function processChunk(chunk, sessionId, userId, i, source, fullText, fileN
         // });
 
         // const embedding = response.data[0].embedding;
-        const response = await fetch("http://localhost:11434/api/embeddings", {
+        const response = await fetch(ollamaEmbeddingsUrl(), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "nomic-embed-text",
+              model: ollamaConfig.embedModel,
               prompt: contextText,
             }),
           });

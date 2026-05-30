@@ -1,29 +1,63 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ClipboardList, UserRound, AlertTriangle } from "lucide-react";
 import ReportedTask from "./ReportedTask";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import StatusMessage from "./StatusMessage";
+
+const STATUS_STYLES = {
+  Completed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  Pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  Delayed: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  Closed: "bg-red-500/10 text-red-700 dark:text-red-400",
+};
+
+function StatusBadge({ status }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium capitalize leading-none ${
+        STATUS_STYLES[status] ?? "bg-muted text-muted-foreground"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
 
 export default function CreateTask() {
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [checkTask, setCheckTask] = useState(null);
+  const [reassignTaskId, setReassignTaskId] = useState(null);
+  const [reassignUserId, setReassignUserId] = useState("");
+
   const { register, handleSubmit, watch, reset, setValue } = useForm({
-    defaultValues: {
-      feedBack: "",
-      userId: "",
-  }});
+    defaultValues: { userId: "" },
+  });
 
   useEffect(() => {
     fetchUsers();
     fetchTasks();
   }, []);
-
-  
 
   const fetchUsers = async () => {
     try {
@@ -35,218 +69,293 @@ export default function CreateTask() {
   };
 
   const fetchTasks = async () => {
-    const toastId = toast.loading(`Fetching tasks...`)
     try {
       const { data } = await axios.get("/api/manager/get-tasks");
-      if(data){
-        
-        setTasks(data);        
-        toast.success(`Fetched Successfully!`, {id: toastId})
-      }else{
-        toast.error(`Couldn't fetch the data`, {id: toastId})
-      }
-      
+      setTasks(data ?? []);
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to fetch tasks", {id: toastId});
+      toast.error(error.response?.data?.error || "Failed to fetch tasks");
     }
   };
 
   const createTask = async (data) => {
-    const toastId = toast.loading(`Creating tasks...`)
-    
+    const toastId = toast.loading("Creating task...");
     try {
       await axios.post("/api/manager/create-task", data);
-      toast.success("Task created successfully", {id: toastId});
+      toast.success("Task created successfully", { id: toastId });
       fetchTasks();
-      reset(); // ✅ Reset form fields after submission
+      reset({ userId: "" });
     } catch (error) {
-      console.log(error);
-      toast.error(error.response?.data?.error || "Error creating task", {id: toastId});
+      toast.error(error.response?.data?.error || "Error creating task", { id: toastId });
     }
   };
-  const reassignTask = async(taskId) => {
-    if(watch("newUser")){
-      const toastId = toast.loading(`Reassigning task...`)
-      try {
-        const res = await axios.post(`/api/manager/reassign-task`, {taskId, newUser: watch("newUser")});
-        if(res.status === 200){
-          toast.success("Task reassigned successfully", {id: toastId})
-          fetchTasks();
-        }else{
-          toast.error(`Error reassigning task`, {id: toastId})
-        }
-      } catch (error) {
-        toast.error(error?.response?.data?.message, {id: toastId})
-      }
+
+  const reassignTask = async () => {
+    if (!reassignUserId) {
+      toast.error("Please select an employee");
+      return;
     }
-    
+    const toastId = toast.loading("Reassigning task...");
+    try {
+      const res = await axios.post("/api/manager/reassign-task", {
+        taskId: reassignTaskId,
+        newUser: reassignUserId,
+      });
+      if (res.status === 200) {
+        toast.success("Task reassigned successfully", { id: toastId });
+        setReassignTaskId(null);
+        setReassignUserId("");
+        fetchTasks();
+      } else {
+        toast.error("Error reassigning task", { id: toastId });
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Error reassigning task", {
+        id: toastId,
+      });
+    }
+  };
+
+  const visibleTasks = tasks.filter(
+    (task) => !(task?.assignedUsers?.id === "" && task?.status === "Completed")
+  );
+
+  if (checkTask) {
+    return (
+      <ReportedTask
+        checkTask={checkTask}
+        setCheckTask={setCheckTask}
+        fetchTasks={fetchTasks}
+      />
+    );
   }
 
   return (
-    <div className="flex flex-col p-5 gap-y-10 h-full overflow-hidden">
-      <div className="flex justify-center">
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="page-header">Assign tasks</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create tasks for your team and track their progress.
+        </p>
+      </div>
 
-        {!checkTask ? 
-         <>
-          <div className="flex flex-col gap-y-10 w-1/2 max-lg:w-2/3 max-[570px]:!w-full h-full justify-center overflow-scroll">
-            <div className="flex justify-center">
-              <h2 className="text-2xl font-semibold text-[var(--lightText)]">
-                Assign Tasks
-              </h2>
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Create task form */}
+        <div className="card-surface lg:col-span-2">
+          <div className="border-b border-border px-6 py-4">
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <ClipboardList className="size-4" />
+              </span>
+              <div>
+                <h2 className="font-semibold text-foreground">Create new task</h2>
+                <p className="text-xs text-muted-foreground">Assign work to a team member</p>
+              </div>
             </div>
-            <form onSubmit={handleSubmit(createTask)} className="flex flex-col gap-y-5 items-center ">
-              <div className="flex flex-col relative w-full">
-                <input
-                  type="text"
-                  id="title"
-                  className="w-full border rounded-full outline-none px-5 py-2.5 peer text-[var(--withdarkinnertext)]"
-                  {...register("title")}
-                />
-                <label
-                  htmlFor="title"
-                  className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-8.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                    watch("title") && `-translate-x-2 scale-90 -translate-y-8.5`
-                  }`}
-                >
-                  Title
-                </label>
-              </div>
-              <div className="relative flex flex-col w-full">
-                <textarea
-                  id="description"
-                  className="border w-full px-5 py-2.5 rounded-lg peer text-[var(--withdarkinnertext)] resize-none outline-none"
-                  {...register("description")}
-                  spellCheck="false"
-                  rows={5}
-                  required
-                />
-                <label
-                  htmlFor="description"
-                  className={`capitalize absolute top-1/2 -translate-y-1/2 left-5 peer-focus:-translate-y-20.5 peer-focus:scale-90 peer-focus:-translate-x-2 bg-[var(--ourbackground)] px-1 transition-all duration-200 ${
-                    watch("description") && `-translate-x-2 scale-90 -translate-y-20.5`
-                  }`}
-                >
-                  Description
-                </label>
-              </div>
-              <Select value={watch("userId")}  onValueChange={(value) => setValue("userId", value)} defaultValue="">
-                <SelectTrigger className="w-full rounded-full py-6 px-4 text-md text-[var(--withdarkinnertext)]">
-                  <SelectValue placeholder="Select an employee"/>
+          </div>
+
+          <form onSubmit={handleSubmit(createTask)} className="flex flex-col gap-4 p-6">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="title" className="text-sm font-medium text-foreground">
+                Title
+              </label>
+              <input
+                type="text"
+                id="title"
+                className="input-field-compact"
+                placeholder="e.g. Q1 report review"
+                {...register("title", { required: true })}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="description" className="text-sm font-medium text-foreground">
+                Description
+              </label>
+              <textarea
+                id="description"
+                className="input-field min-h-[100px] resize-none py-2.5 text-sm"
+                placeholder="Describe the task requirements..."
+                {...register("description", { required: true })}
+                spellCheck="false"
+                rows={4}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Assign to</label>
+              <Select
+                value={watch("userId")}
+                onValueChange={(value) => setValue("userId", value)}
+              >
+                <SelectTrigger className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm shadow-none">
+                  <SelectValue placeholder="Select an employee" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-lg">
                   <SelectGroup>
-                    {users?.map((user) => (
+                    {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user?.firstName} {user?.lastName} ({user?.email})
+                        {user.firstName} {user.lastName} ({user.email})
                       </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <div className="flex max-lg:flex-col gap-y-3 items-center w-full justify-center gap-x-5">
-                <div className=" w-1/3 max-lg:w-2/3 max-[570px]:!w-full">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button
-                        className="px-3 py-1 bg-white text-[var(--dark-btn)] border border-current w-full rounded-full cursor-pointer"
-                      >
-                        Show assigned task
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="w-3/4 max-lg:w-full max-md:w-full overflow-x-auto gap-y-7 max-sm:px-1">
-                      <DialogHeader className={`items-center`}>
-                        <DialogTitle className={`text-[var(--specialtext)]`}>Assigned Tasks</DialogTitle>
-                        <DialogDescription>
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="w-full overflow-x-auto">
-                        <div className="flex flex-col gap-y-7 w-full max-sm:px-1 px-5 overflow-hidden cursor-default min-w-[600px]">
-                          <ul className="flex w-full font-bold text-md text-center bg-[var(--secondary-color)] text-[var(--specialtext)] p-3 rounded-full *:px-1">
-                            <li className="w-1/5">Title</li>
-                            <li className="w-1/5">Description</li>
-                            <li className="w-1/5">Assigned To</li>
-                            <li className="w-1/5">Status</li>
-                            <li className="w-1/5">Report</li>
-                          </ul>
-                          <div className="flex flex-col gap-y-3 text-sm overflow-y-auto">
-                            {(tasks.length > 0) ? tasks.map((task) => (
-                              (task?.assignedUsers?.id === "" && task?.status === "Completed") ? null :(
-                              <ul
-                                className="flex items-center w-full text-center bg-[#f9f8f7] text-[var(--specialtext)] p-3 rounded-full *:px-1"
-                                key={task.id}
-                              >
-                                <li className="w-1/5 capitalize">{task.title}</li>
-                                <li className="w-1/5">{task.description}</li>
-                                <li className="w-1/5 capitalize">
-                                {task?.assignedUsers?.id ?
-                                 <>{task?.assignedUsers?.firstName} {task?.assignedUsers?.lastName}</>
-                                :
-                                task.status !== "Completed" ? 
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <span className="underline cursor-pointer">No user assigned!</span>
-                                  </DialogTrigger>
-                                  <DialogContent className="flex flex-col items-center w-1/3 max-lg:w-1/2 max-sm:w-full gap-y-7">
-                                    <DialogHeader className={`items-center`}>
-                                      <DialogTitle className={`text-[var(--specialtext)]`}>Re-assign Task!</DialogTitle>
-                                      <DialogDescription>
-                                        Select new employee for this task!
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    
-                                    <Select onValueChange={(value) => setValue("newUser", value)} defaultValue="">
-                                        <SelectTrigger className="w-2/3 rounded-full py-6 px-4 text-md text-[var(--withdarkinnertext)] cursor-pointer">
-                                          <SelectValue placeholder="Select an employee"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectGroup>
-                                            {users?.map((user) => (
-                                              <SelectItem key={user.id} value={user.id}>
-                                                {user?.firstName} {user?.lastName} ({user?.email})
-                                              </SelectItem>
-                                            ))}
-                                          </SelectGroup>
-                                        </SelectContent>
-                                      </Select>
-                                      <div className="flex w-full justify-center">
-                                        <button className="bg-[var(--dark-btn)] py-1 w-1/2 text-white rounded-full cursor-pointer" onClick={() => reassignTask(task.id)}>Reassign</button>
-                                      </div>
-                                    </DialogContent>
-                                </Dialog>
-                                : <span>No need to reassign</span>
-                                }
-                                </li>
-                                <li className={`w-1/5 ${task.status === 'Completed' ? `text-green-600` : task.status === 'Pending' ? `text-yellow-600` : task.status === 'Delayed' ? `text-orange-600` : `text-red-600`}`}>{task.status}</li>
-                                {task.reportMessage && <li className={`w-1/5 cursor-pointer underline text-yellow-600`}><span onClick={() => setCheckTask(task)}>Reported</span></li>}
+            </div>
 
-                                {
-                                  !task.reportMessage &&
-                                  <li className={`w-1/5 flex justify-center inert`}>
-                                    <StatusMessage task={task} fetchTasks={fetchTasks}/>
-                                  </li>
-                                }
-                              </ul>
-                              ))) : 
-                              <div className="flex justify-center text-slate-500">
-                                No tasks assigned!
-                              </div>}
-                          </div>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <button type="submit" className="px-3 py-1 bg-[var(--dark-btn)] text-white rounded-full w-1/3 max-lg:w-2/3 max-[570px]:!w-full cursor-pointer">
-                  Create Task
-                </button>
+            <Button type="submit" className="mt-1 h-10 w-full rounded-xl font-semibold">
+              Create task
+            </Button>
+          </form>
+        </div>
+
+        {/* Task list */}
+        <div className="card-surface flex max-h-[620px] w-full min-w-0 flex-col overflow-hidden lg:col-span-3">
+          <div className="shrink-0 border-b border-border px-6 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-foreground">Assigned tasks</h2>
+                <p className="text-xs text-muted-foreground">
+                  {visibleTasks.length} task{visibleTasks.length !== 1 ? "s" : ""} active
+                </p>
               </div>
-            </form>
+            </div>
           </div>
-         </>
-         :
-         <ReportedTask checkTask={checkTask} setCheckTask={setCheckTask} fetchTasks={fetchTasks}/>
-        }
+
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
+            {visibleTasks.length > 0 ? (
+              <table className="w-full min-w-[720px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <th className="px-5 py-2.5 font-semibold">Title</th>
+                    <th className="px-5 py-2.5 font-semibold">Description</th>
+                    <th className="px-5 py-2.5 font-semibold">Assignee</th>
+                    <th className="px-5 py-2.5 text-center font-semibold">Status</th>
+                    <th className="px-5 py-2.5 text-center font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {visibleTasks.map((task) => (
+                    <tr
+                      key={task.id}
+                      className="transition-colors hover:bg-muted/30"
+                    >
+                      <td className="max-w-[160px] px-5 py-3.5 align-middle">
+                        <span className="block truncate font-medium capitalize text-foreground">
+                          {task.title}
+                        </span>
+                      </td>
+                      <td className="max-w-[220px] px-5 py-3.5 align-middle">
+                        <span className="line-clamp-2 text-muted-foreground">
+                          {task.description}
+                        </span>
+                      </td>
+                      <td className="max-w-[160px] px-5 py-3.5 align-middle">
+                        {task?.assignedUsers?.id ? (
+                          <span className="inline-flex max-w-full items-center gap-1.5 capitalize">
+                            <UserRound className="size-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate">
+                              {task.assignedUsers.firstName} {task.assignedUsers.lastName}
+                            </span>
+                          </span>
+                        ) : task.status !== "Completed" ? (
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => {
+                              setReassignTaskId(task.id);
+                              setReassignUserId("");
+                            }}
+                          >
+                            Assign employee
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-center align-middle">
+                        <div className="flex items-center justify-center">
+                          <StatusBadge status={task.status} />
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-center align-middle">
+                        <div className="flex items-center justify-center">
+                          {task.reportMessage ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 rounded-lg border-amber-500/30 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                              onClick={() => setCheckTask(task)}
+                            >
+                              <AlertTriangle className="size-3.5" />
+                              Reported
+                            </Button>
+                          ) : (
+                            <StatusMessage task={task} fetchTasks={fetchTasks} />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+                <ClipboardList className="size-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-muted-foreground">No tasks yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Create a task using the form to get started.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Reassign dialog */}
+      <Dialog
+        open={!!reassignTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReassignTaskId(null);
+            setReassignUserId("");
+          }
+        }}
+      >
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reassign task</DialogTitle>
+            <DialogDescription>
+              Select a team member to assign this task to.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2">
+            <Select value={reassignUserId} onValueChange={setReassignUserId}>
+              <SelectTrigger className="h-10 w-full rounded-lg border border-input bg-background px-4 text-sm shadow-none">
+                <SelectValue placeholder="Select an employee" />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg">
+                <SelectGroup>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              className="h-10 w-full rounded-xl font-semibold"
+              onClick={reassignTask}
+            >
+              Confirm reassignment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
